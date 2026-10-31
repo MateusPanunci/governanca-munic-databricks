@@ -1,5 +1,4 @@
 # Governança de Dados e BI: Perfil dos Municípios Brasileiros (MUNIC - IBGE)
-### Pipeline Lakehouse Medallion Parametrizado e Governança de TI
 
 [![Databricks](https://img.shields.io/badge/Databricks-Lakehouse-E25A1C?logo=databricks&logoColor=white)](https://databricks.com)
 [![PySpark](https://img.shields.io/badge/Apache_Spark-PySpark-E25A1C?logo=apachespark&logoColor=white)](https://spark.apache.org/)
