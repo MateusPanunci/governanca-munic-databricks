@@ -161,27 +161,27 @@ erDiagram
 ---
 
 ### 3.3. Fato de Rastreabilidade e Auditoria (`munic_catalog.gold.fact_resposta`)
-* **Granularidade:** Município × Variável × Edição (5.570 municípios × 360 variáveis = 2.005.200 linhas)[cite: 32].
-* **Finalidade no Modelo:** Atua como a camada de detalhamento atômico, auditoria analítica e memória de cálculo do projeto[cite: 6]. **Não é consumida diretamente em varreduras massivas pelo dashboard visual de BI**, servindo para responder a consultas analíticas pontuais (*drill-down*) e rastrear como a nota de cada cidade foi composta indicador por indicador[cite: 3, 6].
+* **Granularidade:** Município × Variável × Edição (5.570 municípios × 360 variáveis = 2.005.200 linhas).
+* **Finalidade no Modelo:** Atua como a camada de detalhamento atômico, auditoria analítica e memória de cálculo do projeto. **Não é consumida diretamente em varreduras massivas pelo dashboard visual de BI**, servindo para responder a consultas analíticas pontuais (*drill-down*) e rastrear como a nota de cada cidade foi composta indicador por indicador.
 
 #### 3.3.1. Papel e Finalidade da Coluna `classe_preenchimento`
 
-A coluna `classe_preenchimento` opera exclusivamente no grão atômico da `fact_resposta` (nível célula/registro) e **não deve ser confundida com a tipagem da variável** (como `tipo_detectado` ou `tema`, que pertencem à dimensão `dim_indicador` e descrevem a pergunta no questionário)[cite: 31, 32].
+A coluna `classe_preenchimento` opera exclusivamente no grão atômico da `fact_resposta` (nível célula/registro) e **não deve ser confundida com a tipagem da variável** (como `tipo_detectado` ou `tema`, que pertencem à dimensão `dim_indicador` e descrevem a pergunta no questionário).
 
-Enquanto a `dim_indicador` caracteriza a *natureza estrutural do indicador*, a `classe_preenchimento` registra o **estado de qualidade do preenchimento observado naquele município específico**, traduzindo o conteúdo de `resposta_original` em uma das 5 categorias mutuamente exclusivas validadas no diagnóstico da Etapa 2[cite: 32]:
+Enquanto a `dim_indicador` caracteriza a *natureza estrutural do indicador*, a `classe_preenchimento` registra o **estado de qualidade do preenchimento observado naquele município específico**, traduzindo o conteúdo de `resposta_original` em uma das 5 categorias mutuamente exclusivas validadas no diagnóstico da Etapa 2:
 
-1. **`Valida`:** O município efetivamente prestou informação utilizável (`"Sim"`, `"Não"`, texto livre ou categoria). Corresponde a 1.493.935 células (74,50% da base)[cite: 32].
-2. **`Nao_Aplicavel_Skip`:** A pergunta não se aplicava ao município em decorrência de salto lógico (*skip-logic*, assinalado pelo código `"-"` na base original). Corresponde a 500.916 células (24,98% da base), distribuídas em 207 das 360 colunas[cite: 32].
-3. **`Nao_Sabe`:** O respondente declarou explicitamente `"Não sabe informar"`. Concentrado em perguntas de governança e dados (857 municípios em `mgov32`)[cite: 32].
-4. **`Nao_Informou`:** A prefeitura deixou a pergunta sem preenchimento (`"Não informou"`)[cite: 32].
-5. **`Recusa`:** O município recusou formalmente a pesquisa censitária. Corresponde a exatamente 2.520 células (os 7 municípios recusantes nomeados pelo IBGE × 360 variáveis)[cite: 32].
+1. **`Valida`:** O município efetivamente prestou informação utilizável (`"Sim"`, `"Não"`, texto livre ou categoria). Corresponde a 1.493.935 células (74,50% da base).
+2. **`Nao_Aplicavel_Skip`:** A pergunta não se aplicava ao município em decorrência de salto lógico (*skip-logic*, assinalado pelo código `"-"` na base original). Corresponde a 500.916 células (24,98% da base), distribuídas em 207 das 360 colunas.
+3. **`Nao_Sabe`:** O respondente declarou explicitamente `"Não sabe informar"`. Concentrado em perguntas de governança e dados (857 municípios em `mgov32`).
+4. **`Nao_Informou`:** A prefeitura deixou a pergunta sem preenchimento (`"Não informou"`).
+5. **`Recusa`:** O município recusou formalmente a pesquisa censitária. Corresponde a exatamente 2.520 células (os 7 municípios recusantes nomeados pelo IBGE × 360 variáveis).
 
 #### 3.3.2. Para que a `classe_preenchimento` é Utilizada na Prática?
 
 A existência dessa coluna na tabela fato atende a duas funções operacionais e de governança:
 
 * **1. Simplificação e Padronização de Consultas SQL de Auditoria:**  
-  Desacopla os testes de completude e qualidade do formato da resposta. Em vez de criar rotinas com múltiplos filtros de string (`WHERE resposta = '...' OR resposta IS NULL`), a verificação de taxas de resposta e a auditoria dos dados tornam-se operações diretas[cite: 43]:
+  Desacopla os testes de completude e qualidade do formato da resposta. Em vez de criar rotinas com múltiplos filtros de string (`WHERE resposta = '...' OR resposta IS NULL`), a verificação de taxas de resposta e a auditoria dos dados tornam-se operações diretas:
   ```sql
   -- Exemplo: Diagnóstico de preenchimento por indicador via SQL
   SELECT 
@@ -195,9 +195,9 @@ A existência dessa coluna na tabela fato atende a duas funções operacionais e
   ```
 
 * **2. Controle Preciso do Denominador Efetivo nas Métricas (Mitigação de Vieses):**  
-  Na hora de consolidar taxas de adoção de serviços ou calcular o sub-índice na `fact_imdm_municipio`, a coluna orienta quais registros entram no divisor[cite: 32]:
-  * **Em saltos lógicos (`Nao_Aplicavel_Skip`) e recusas totais (`Recusa`):** A prefeitura não era o público-alvo da pergunta ou não participou da pesquisa. Nessas linhas, `peso_aplicado = NULL`, garantindo que esses casos sejam expurgados do denominador e não gerem penalizações indevidas[cite: 32].
-  * **Em declarações de desconhecimento (`Nao_Sabe`) e omissões (`Nao_Informou`):** Conforme diagnosticado na Etapa 2, a incapacidade de informar reflete baixa capacidade institucional (com forte concentração em municípios pequenos)[cite: 32]. Nessas linhas, `pontos_obtidos = 0.0` e o `peso_aplicado` permanece ativo no denominador, evitando a geração de um viés artificialmente positivo em prefeituras com fragilidades de controle interno[cite: 32].
+  Na hora de consolidar taxas de adoção de serviços ou calcular o sub-índice na `fact_imdm_municipio`, a coluna orienta quais registros entram no divisor:
+  * **Em saltos lógicos (`Nao_Aplicavel_Skip`) e recusas totais (`Recusa`):** A prefeitura não era o público-alvo da pergunta ou não participou da pesquisa. Nessas linhas, `peso_aplicado = NULL`, garantindo que esses casos sejam expurgados do denominador e não gerem penalizações indevidas.
+  * **Em declarações de desconhecimento (`Nao_Sabe`) e omissões (`Nao_Informou`):** Conforme diagnosticado na Etapa 2, a incapacidade de informar reflete baixa capacidade institucional (com forte concentração em municípios pequenos). Nessas linhas, `pontos_obtidos = 0.0` e o `peso_aplicado` permanece ativo no denominador, evitando a geração de um viés artificialmente positivo em prefeituras com fragilidades de controle interno.
 
 #### 3.3.3. Semântica de Pontuação dos 6 Estados e Tratamento do Denominador Efetivo
 
@@ -205,10 +205,10 @@ A existência dessa coluna na tabela fato atende a duas funções operacionais e
 | :--- | :--- | :---: | :---: | :---: | :--- |
 | **`Sim`** | `Valida` | `'1'` | 1.0 × peso | peso | Comprova a existência da capacidade/serviço. |
 | **`Não`** | `Valida` | `'0'` | 0.0 | peso | Declaração explícita de ausência do item. |
-| **`Não sabe informar`** | `Nao_Sabe` | `'0'` | 0.0 | peso | Penaliza maturidade; peso ativo no denominador evita viés artificialmente favorável[cite: 32]. |
-| **`Não informou`** | `Nao_Informou` | `'0'` | 0.0 | peso | Omissão pontual penalizada na métrica[cite: 32]. |
-| **`-` (Salto Lógico)** | `Nao_Aplicavel_Skip` | `NULL` | NULL | NULL | Pergunta não dirigida ao respondente; desconsiderada do denominador efetivo[cite: 32]. |
-| **`Recusa`** | `Recusa` | `NULL` | NULL | NULL | Não gera pontuação zero arbitrária; preserva a evidência externa dos 7 municípios recusantes[cite: 32]. |
+| **`Não sabe informar`** | `Nao_Sabe` | `'0'` | 0.0 | peso | Penaliza maturidade; peso ativo no denominador evita viés artificialmente favorável. |
+| **`Não informou`** | `Nao_Informou` | `'0'` | 0.0 | peso | Omissão pontual penalizada na métrica. |
+| **`-` (Salto Lógico)** | `Nao_Aplicavel_Skip` | `NULL` | NULL | NULL | Pergunta não dirigida ao respondente; desconsiderada do denominador efetivo. |
+| **`Recusa`** | `Recusa` | `NULL` | NULL | NULL | Não gera pontuação zero arbitrária; preserva a evidência externa dos 7 municípios recusantes. |
 
 ---
 
