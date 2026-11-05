@@ -215,3 +215,21 @@ OBSERVAÇÕES:
 | `Mtic284`                                         | Libras isolada: o `Mtic29` cobre acessibilidade de forma mais ampla                                               |
 | `Mgov06`, `Mgov13`, `Mtic12a3`, `Mtic12a5`        | Quase constantes (~91% a 99,3% Sim)                                                                                |
 | `Mtic12b14`, `Mtic18a4`                           | Muito raras (~2% Sim)
+
+
+---
+
+## Níveis de maturidade (`nivel_maturidade_mmd`)
+
+O radar calcula **só a nota** (0–100). O nível é uma classificação feita depois, sobre o IMDM global.
+
+| Nível | Faixa do IMDM |
+| ----- | ------------- |
+| 1: Incipiente | menor que 25 |
+| 2: Básico | de 25 até menos de 50 |
+| 3: Intermediário | de 50 até menos de 75 |
+| 4: Avançado | 75 ou mais |
+
+- As faixas são fixas (quatro partes iguais da escala 0–100);
+- Municípios sem IMDM (`Recusa`) ficam sem nível;
+- O corte está no `pipeline/silver_to_gold`, Step 8 (coluna `nivel_maturidade_mmd`).
