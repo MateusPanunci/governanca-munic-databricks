@@ -1,9 +1,9 @@
 # Especificação do Modelo Dimensional, Regras de Pontuação e Camada Semântica (Etapa 3)
 
-**Projeto:** Índice de Maturidade Digital Municipal (IMDM) — MUNIC 2024 (SGD/MGI)
-**Catálogo Unity Catalog:** `munic_catalog`
-**Schemas Alvo:** `silver` (ajuste de pré-requisito), `gold` e `semantic`
-**Alinhamento de Governança:** COBIT 2019 (APO03.02, APO14.02, APO14.03, APO14.07, BAI03.02, MEA01.03) e CMMI-DMM (Modelo de Maturidade de Dados)
+- **Projeto:** Índice de Maturidade Digital Municipal (IMDM) — MUNIC 2024 (SGD/MGI)
+- **Catálogo Unity Catalog:** `munic_catalog`
+- **Schemas Alvo:** `silver` (ajuste de pré-requisito), `gold` e `semantic`
+- **Alinhamento de Governança:** COBIT 2019 (APO03.02, APO14.02, APO14.03, APO14.07, BAI03.02, MEA01.03) e CMMI-DMM (Modelo de Maturidade de Dados)
 
 ---
 
@@ -70,8 +70,8 @@ erDiagram
     dim_indicador ||--o{ fact_resposta : "parametriza e explica (1:N)"
 
     dim_municipio {
-        string cod_ibge PK "Codigo IBGE 7 digitos (5.570 municipios)"
-        int ano_edicao "Ano da edicao (2024)"
+        string cod_ibge PK "Codigo IBGE 7 digitos (PK Composta)"
+        int ano_edicao PK "Ano da edicao (PK Composta e particao)"
         string nome "Nome do municipio"
         string uf_sigla "Sigla da UF (ex PR, SP)"
         string regiao "Grande Regiao do IBGE"
@@ -162,13 +162,13 @@ erDiagram
 
 #### 3.2.2. As 5 Categorias Formais de `regra_pontuacao`
 
-| Categoria (`regra_pontuacao`)        |    Volume Alvo    | Lógica Matemática de Pontuação (`pontos_obtidos`)                                                            | Exemplos Reais na Base MUNIC 2024                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| :------------------------------------- | :---------------: | :----------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **1. `SIM_POSITIVO`**          |  51 dos 64 itens  | • `"Sim"` → 1.0 × peso• `"Não"` e `"-"` → 0.0• `"Não sabe informar"` → NULL (fora do denominador) | • `mgov32` (Responsável pela LGPD)• `mtic06` (Estrutura de TI)• `mtic251` (Consulta pública online)                                                                                                                                                                                                                                                                                                                                                                                      |
-| **2. `CATEGORICO_ESCALONADO`** |     10 itens     | • Nível pleno → 1.0 × peso• Nível parcial → 0.5 × peso• Ausência → 0.0                                  | • `mgov09`: com instrumento legal = 1; sem = 0,5; Não = 0• `mgov05`: perguntas e respostas = 1; só respostas = 0,5; não publica = 0 (não se aplica se `mgov04` = Não e não publica)• `mtic10`: ativa = 1; em manutenção = 0,5; em elaboração ou não possui = 0• `mtic29`: modelo oficial (federal, global ou estadual) = 1; próprio = 0,5; nenhum = 0• Formato de publicação (`mgov07X1`–`X5`, 6 itens): aberto = 1; só PDF/imagem/outro = 0,5; não publica = 0 |
-| **3. `ESCADA_MAIOR_NIVEL`**    |      1 item      | • Item formado por opções de múltipla escolha; vale o maior nível marcado.                                    | • Canal de solicitação (`mtic171`–`176`): site da prefeitura ou app = 1; telefone ou outro website = 0,5; só redes sociais = 0,25; nenhum = 0                                                                                                                                                                                                                                                                                                                                              |
-| **4. `GRUPO_PROPORCIONAL`**    |      2 itens      | • Fração de `"Sim"` entre as variáveis do grupo (0 a 1) × peso.                                             | • Grupo A, informações institucionais e atendimento (`mgov081`–`084`, `mgov088`)• Grupo B, execução e controle social (`mgov085`, `086`, `087`, `089`)                                                                                                                                                                                                                                                                                                                         |
-| **5. `NAO_PONTUA`**            | Demais variáveis | • `pontos_obtidos` = NULL• `peso_aplicado` = NULL (Fora do denominador do índice)                           | • `mtic11` (URL do site)• `mtic31` (Nome do órgão de comunicação)• `mgov33` (Localização do responsável pela LGPD — atributo descritivo)• `mtic271` (Portal da transparência — 99,7% têm)• `mgov15` / `mgov16` (Vínculo e formação — proteção ética/LGPD da Seção 5.1)                                                                                                                                                                                         |
+| Categoria (`regra_pontuacao`) | Volume Alvo | Lógica Matemática de Pontuação (`pontos_obtidos`) | Exemplos Reais na Base MUNIC 2024 |
+| :--- | :---: | :--- | :--- |
+| **1. `SIM_POSITIVO`** | 51 dos 64 itens | • `"Sim"` → 1.0 × peso<br>• `"Não"`, `"-"`, `"Não sabe informar"` e `"Não informou"` → 0.0 (conta no denominador) | • `mgov32` (Responsável pela LGPD)<br>• `mtic06` (Estrutura de TI)<br>• `mtic251` (Consulta pública online) |
+| **2. `CATEGORICO_ESCALONADO`** | 10 itens | • Nível pleno → 1.0 × peso<br>• Nível parcial → 0.5 × peso<br>• Ausência / Não / Não sabe / Não informou → 0.0 | • `mgov09`: com instrumento legal = 1; sem = 0,5; Não = 0<br>• `mgov05`: perguntas e respostas = 1; só respostas = 0,5; não publica = 0 (não se aplica se `mgov04` = Não e não publica)<br>• `mtic10`: ativa = 1; em manutenção = 0,5; em elaboração ou não possui = 0<br>• `mtic29`: modelo oficial (federal, global ou estadual) = 1; próprio = 0,5; nenhum = 0<br>• Formato de publicação (`mgov07X1`–`X5`, 6 itens): aberto = 1; só PDF/imagem/outro = 0,5; não publica = 0 |
+| **3. `ESCADA_MAIOR_NIVEL`** | 1 item | • Item formado por opções de múltipla escolha; vale o maior nível marcado. | • Canal de solicitação (`mtic171`–`176`): site da prefeitura ou app = 1; telefone ou outro website = 0,5; só redes sociais = 0,25; nenhum = 0 |
+| **4. `GRUPO_PROPORCIONAL`** | 2 itens | • Fração de `"Sim"` entre as variáveis do grupo (0 a 1) × peso. | • Grupo A: informações institucionais e atendimento (`mgov081`–`084`, `mgov088`)<br>• Grupo B: execução e controle social (`mgov085`, `086`, `087`, `089`) |
+| **5. `NAO_PONTUA`** | Demais variáveis | • `pontos_obtidos` = NULL<br>• `peso_aplicado` = NULL (Fora do denominador do índice) | • `mtic11` (URL do site)<br>• `mtic31` (Nome do órgão de comunicação)<br>• `mgov33` (Localização do responsável pela LGPD — atributo descritivo)<br>• `mtic271` (Portal da transparência — 99,7% têm)<br>• `mgov15` / `mgov16` (Vínculo e formação — proteção ética/LGPD da Seção 5.1) |                                                                                                                                |
 
 ---
 
@@ -193,7 +193,7 @@ Enquanto a `dim_indicador` caracteriza a *natureza estrutural do indicador*, a `
 
 A existência dessa coluna na tabela fato atende a duas funções operacionais e de governança:
 
-* **1. Simplificação e Padronização de Consultas SQL de Auditoria:**Desacopla os testes de completude e qualidade do formato da resposta. Em vez de criar rotinas com múltiplos filtros de string (`WHERE resposta = '...' OR resposta IS NULL`), a verificação de taxas de resposta e a auditoria dos dados tornam-se operações diretas:
+- **1. Simplificação e Padronização de Consultas SQL de Auditoria:** Desacopla os testes de completude e qualidade do formato da resposta. Em vez de criar rotinas com múltiplos filtros de string (`WHERE resposta = '...' OR resposta IS NULL`), a verificação de taxas de resposta e a auditoria dos dados tornam-se operações diretas:
 
   ```sql
   -- Exemplo: Diagnóstico de preenchimento por indicador via SQL
@@ -206,25 +206,27 @@ A existência dessa coluna na tabela fato atende a duas funções operacionais e
   FROM munic_catalog.gold.fact_resposta
   GROUP BY cod_variable;
   ```
-* **2. Controle Preciso do Denominador Efetivo nas Métricas (Mitigação de Vieses):**Na hora de consolidar taxas de adoção de serviços ou calcular o sub-índice na `fact_imdm_municipio`, a coluna orienta quais registros entram no divisor:
+* **2. Controle Preciso do Denominador Efetivo nas Métricas (Mitigação de Vieses):**
 
-  * **Em saltos lógicos (`Nao_Aplicavel_Skip`):** o `-` decorre da ausência da estrutura-mãe (ex.: sem estrutura de TI, sem equipe própria de TI). Nessas linhas, `pontos_obtidos = 0.0` e o `peso_aplicado` permanece ativo no denominador.
-  * **Em declarações de desconhecimento (`Nao_Sabe`):** não se pontua o que o município não soube informar. Nessas linhas, `peso_aplicado = NULL`, e o item sai do denominador.
-  * **Em "não se aplica" derivado (`mgov05`):** quando o município não recebeu pedido pela LAI (`mgov04` = `Não`) e não publica, não havia o que publicar. O item sai do denominador (`peso_aplicado = NULL`).
-  * **Em omissões (`Nao_Informou`) e recusas totais (`Recusa`):** o município fica com IMDM `NULL` e fora de médias e rankings (`motivo_imdm_nulo`).
-  * **Município sem nenhum item válido em uma dimensão** (ex.: `"Não sabe informar"` em todos os itens da D5): IMDM `NULL` (`motivo_imdm_nulo = 'Sem_Item_Valido'`).
+  Na consolidação de taxas de adoção de serviços ou cálculo dos sub-índices na `fact_imdm_municipio`, a coluna orienta o cômputo:
+
+    * **Em saltos lógicos (`Nao_Aplicavel_Skip`):** o `-` decorre da ausência da estrutura-mãe. Como os desdobramentos distorcivos foram expurgados no Radar, a ausência de capacidade pontua 0.0 e o `peso_aplicado` permanece ativo no denominador.
+    * **Em declarações de desconhecimento (`Nao_Sabe`):** atesta falta de governança interna; pontua 0.0 e o `peso_aplicado` permanece ativo no denominador, evitando inflar a média de municípios desorganizados.
+    * **Em omissões pontuais (`Nao_Informou`):** a pergunta obrigatória não foi respondida; pontua 0.0 e permanece ativa no denominador (`peso_aplicado = peso`), penalizando apenas o quesito omitido sem anular o município inteiro.
+    * **Em "não se aplica" legítimo (`mgov05`):** quando o município não recebeu pedido pela LAI (`mgov04 = Não`) e não publica, não havia o que publicar. O item sai do denominador (`peso_aplicado = NULL`).
+    * **Em recusas formais ao censo (`Recusa`):** ausência total de coleta; município fica com IMDM NULL (`motivo_imdm_nulo = 'Recusa'`).
 
 #### 3.3.3. Semântica de Pontuação dos 6 Estados e Tratamento do Denominador Efetivo
 
-| `resposta_original`                                              | `classe_preenchimento` | `resposta_normalizada` | `pontos_obtidos` (Regra Positiva) | `peso_aplicado` (Denominador) | Tratamento e Justificativa de Governança                                                                                        |
-| :----------------------------------------------------------------- | :----------------------- | :----------------------: | :---------------------------------: | :-----------------------------: | :------------------------------------------------------------------------------------------------------------------------------- |
-| **`Sim`**                                                  | `Valida`               |         `'1'`         |             1.0 × peso             |              peso              | Comprova a existência da capacidade/serviço.                                                                                   |
-| **`Não`**                                                 | `Valida`               |         `'0'`         |                 0.0                 |              peso              | Declaração explícita de ausência do item.                                                                                    |
-| **`Não sabe informar`**                                   | `Nao_Sabe`             |         `NULL`         |                NULL                |              NULL              | Sai do denominador; não se pontua o que o município não soube informar.                                                       |
-| **`Não informou`**                                        | `Nao_Informou`         |         `NULL`         |                NULL                |              NULL              | Município fica com IMDM `NULL` (`motivo_imdm_nulo = 'Nao_Informou'`).                                                       |
-| **`-` (Salto Lógico)**                                    | `Nao_Aplicavel_Skip`   |         `'0'`         |                 0.0                 |              peso              | O salto decorre da ausência da estrutura-mãe; vale 0 e permanece no denominador.                                               |
-| **`Recusa`**                                               | `Recusa`               |         `NULL`         |                NULL                |              NULL              | Município fica com IMDM `NULL` (`motivo_imdm_nulo = 'Recusa'`); preserva a evidência externa dos 7 municípios recusantes. |
-| **`Não publica` em `mgov05` com `mgov04` = `Não`** | `Valida`               |         `NULL`         |                NULL                |              NULL              | "Não se aplica": o município não recebeu pedido pela LAI e não tinha o que publicar; sai do denominador.                     |
+| `resposta_original` | `classe_preenchimento` | `resposta_normalizada` | `pontos_obtidos` | `peso_aplicado` | Tratamento e Justificativa de Governança |
+| :--- | :--- | :---: | :---: | :---: | :--- |
+| **`Sim`** | `Valida` | `'1'` | 1.0 × peso | peso | Comprova a existência da capacidade/serviço. |
+| **`Não`** | `Valida` | `'0'` | 0.0 | peso | Declaração explícita de ausência da capacidade/serviço. |
+| **`Não sabe informar`** | `Nao_Sabe` | `'0'` | 0.0 | peso | Declaração expressa de desconhecimento atesta ausência de controle institucional. Permanece no divisor para mitigar viés otimista. |
+| **`Não informou`** | `Nao_Informou` | `'0'` | 0.0 | peso | Omissão pontual em pergunta obrigatória pontua zero no quesito com divisor ativo, eliminando incentivo à não-resposta estratégica. |
+| **`-` (Salto Lógico)** | `Nao_Aplicavel_Skip` | `'0'` | 0.0 | peso | Decorre da ausência da infraestrutura-mãe. Como os itens distorcivos foram excluídos no Radar, vale zero e permanece no divisor. |
+| **`Recusa`** | `Recusa` | `NULL` | NULL | NULL | Município fica com IMDM NULL (`motivo_imdm_nulo = 'Recusa'`); preserva a evidência externa das 7 recusas formais do censo. |
+| **`Não publica` em `mgov05` com `mgov04` = `Não`** | `Valida` | `NULL` | NULL | NULL | "Não se aplica" legítimo: o município não recebeu pedidos pela LAI e não tinha o que publicar; sai do denominador. |                     |
 
 ---
 
@@ -237,7 +239,7 @@ A existência dessa coluna na tabela fato atende a duas funções operacionais e
   Score_{i, d} = ( Σ pontos_obtidos_{i, d} / Σ peso_aplicado_{i, d} ) × 100
 * **Índice Global Consolidado:**
   IMDM_i = ( Score_D1 + Score_D2 + Score_D3 + Score_D4 + Score_D5 ) / 5
-* **Casos com IMDM `NULL`:** município com `Recusa` ou `Não informou` em algum item pontuado, ou sem nenhum item válido em alguma dimensão (`motivo_imdm_nulo`).
+* **Casos com IMDM NULL:** Restrito exclusivamente aos 7 municípios com Recusa formal censitária documentada pelo IBGE (`motivo_imdm_nulo = 'Recusa'`). Todos os demais 5.563 municípios recebem pontuação e classificação regular no índice.
 
 ---
 
@@ -283,6 +285,6 @@ As views abaixo representam o **contrato conceitual inicial sugerido** para guia
 
 1. **Asserção de Volume de Indicadores:** `COUNT(DISTINCT cod_variable) == 360` em `gold.dim_indicador` (198 `TIC` + 162 `GOV`), com 0 variáveis sem regra ou dimensão.
 2. **Conservação Exata de Observações:** `COUNT(*) == 2.005.200` em `gold.fact_resposta`, preservando a distribuição exata das 6 classes da Etapa 2 (1.493.935 válidas; 500.916 não aplicáveis `-`; 4.413 não informou; 3.416 não sabe informar; 2.520 recusas).
-3. **Preservação da Evidência da Etapa 2 e Isolamento de Municípios sem IMDM:** Exatamente 2.520 células marcadas com `Recusa` na fato longa. Na tabela `gold.fact_imdm_municipio`, exatamente 259 registros com `score_global_imdm IS NULL` (7 com `motivo_imdm_nulo = 'Recusa'`, 47 com `'Nao_Informou'` e 205 com `'Sem_Item_Valido'`), e 5.311 municípios com scores válidos calculados no intervalo [0, 100].
+3. **Preservação da Evidência da Etapa 2 e Isolamento de Municípios sem IMDM:** Exatamente 2.520 células marcadas com Recusa na `gold.fact_resposta`. Na tabela `gold.fact_imdm_municipio`, exatamente 7 registros com `score_global_imdm IS NULL` (`motivo_imdm_nulo = 'Recusa'`), e 5.563 municípios com scores válidos calculados no intervalo [0, 100], eliminando divisões por zero ou descartes indevidos de prefeituras por desinformação.
 4. **Integridade Referencial (FK Checks):** 0 registros órfãos entre `fact_resposta` / `fact_imdm_municipio` e as dimensões `dim_municipio` e `dim_indicador`.
 5. **Proteção Ética e Privacidade:** As colunas com dados descritivos de servidores (`mgov15` — vínculo e `mgov16` — formação acadêmica) recebem obrigatoriamente `regra_pontuacao = 'NAO_PONTUA'` e não são expostas individualmente em cruzamentos de pequeno porte no dashboard.
