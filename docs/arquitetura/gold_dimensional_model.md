@@ -97,7 +97,7 @@ erDiagram
     fact_imdm_municipio {
         string cod_ibge PK,FK "FK para dim_municipio (Grao 5.570 linhas)"
         int ano_edicao PK "Particao e chave temporal (2024)"
-        string motivo_imdm_nulo "Recusa, Nao_Informou, Sem_Item_Valido ou NULL quando o IMDM e calculado"
+        string motivo_imdm_nulo "Recusa, Sem_Item_Valido ou NULL quando o IMDM e calculado"
         double score_d1_infra_acesso "D1 Infraestrutura, capacidade de TIC e acesso digital (0 a 100)"
         double score_d2_transparencia "D2 Transparencia ativa e dados abertos (0 a 100)"
         double score_d3_servicos_digitais "D3 Servicos digitais ao cidadao (0 a 100)"
