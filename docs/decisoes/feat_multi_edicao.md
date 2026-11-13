@@ -108,6 +108,7 @@ O `silver_to_gold` construía a `dim_indicador` **direto** de `dq_column_profile
 
 * **Relatório de decisões por branch no fechamento** (este arquivo) em vez de CHANGELOG incremental por commit — decisão do grupo, priorizando baixo atrito; commit messages decentes continuam como registro atômico.
 * Fluxo de trabalho: o agente registra sessões na memória interna automaticamente; o relatório final será gerado cruzando memória + `git diff main..HEAD` + histórico da conversa.
+* **Ledger do pipeline** (desenhado 2026-11-13, pendente de implementação): tabela `pipeline_manifest` — uma linha por etapa×edição com o contrato de execução (linhas, indicadores com dados, recusa, SHA-256), substituindo os fail-fasts hardcoded do bronze_to_silver (que estouram para 2019 e até para re-runs de 2024 no schema união: 403 colunas vs. 360 esperadas) e padronizando as guards de fronteira com as funções de verificação `validar_igual`/`contrato_da_edicao` (família `validar_*`). Desenho completo em `docs/arquitetura/pipeline_manifest.md` (renomeado de `pipeline_ledger.md` em 13/11 — doc nomeado pela tabela que documenta). Correção irmã: `userMetadata` não chega nos MERGEs do upsert (histórico mostra None) — setar `spark.databricks.delta.commitInfo.userMetadata` no passo 6.
 
 ---
 
