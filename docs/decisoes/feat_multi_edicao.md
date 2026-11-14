@@ -1,6 +1,6 @@
 # Relatório de decisões e mudanças — branch `feat/multi-edicao`
 
-> **Documento vivo (parcial)** — cobre TODO o trabalho da branch `feat/multi-edicao`, do primeiro commit `4dbb042` (2026-11-09) até 2026-11-13. Será finalizado quando a funcionalidade fechar (silver/gold multi-edição completas).
+> **Documento vivo (parcial)** — cobre TODO o trabalho da branch `feat/multi-edicao`, do primeiro commit `4dbb042` até o fechamento da funcionalidade (silver/gold multi-edição completas).
 >
 > Fontes: sessões de trabalho com o agente (com evidências verificadas), `git diff main..HEAD` + árvore de trabalho, e histórico da conversa do grupo.
 
@@ -10,7 +10,7 @@ Objetivo da branch: o pipeline MUNIC operar **por edição**, com 2019 e 2024 co
 
 ---
 
-## 2026-11-09 — Commit `4dbb042`: multi-edição na ingestão
+## Commit `4dbb042`: multi-edição na ingestão
 
 ### Mudanças (3 arquivos)
 
@@ -25,7 +25,7 @@ Objetivo da branch: o pipeline MUNIC operar **por edição**, com 2019 e 2024 co
 
 ---
 
-## 2026-11-12 — Fundação da multi-edição (bronze + profiling)
+## Fundação da multi-edição (bronze + profiling)
 
 ### Mudanças
 
@@ -46,7 +46,7 @@ Objetivo da branch: o pipeline MUNIC operar **por edição**, com 2019 e 2024 co
 
 ---
 
-## 2026-11-12/13 — Item 2.1: drift do dicionário entre edições
+## Item 2.1: drift do dicionário entre edições
 
 ### Mudanças
 
@@ -59,7 +59,7 @@ Objetivo da branch: o pipeline MUNIC operar **por edição**, com 2019 e 2024 co
 
 ---
 
-## 2026-11-13 — Profiling por edição, vereditos e LGPD
+## Profiling por edição, vereditos e LGPD
 
 ### Mudanças
 
@@ -80,7 +80,7 @@ Objetivo da branch: o pipeline MUNIC operar **por edição**, com 2019 e 2024 co
 
 ---
 
-## 2026-11-13 — Dependência dq_* → gold corrigida e gold 2024 revalidada
+## Dependência dq_* → gold corrigida e gold 2024 revalidada
 
 ### Problema
 
@@ -104,26 +104,69 @@ O `silver_to_gold` construía a `dim_indicador` **direto** de `dq_column_profile
 
 ---
 
-## 2026-11-13 — Decisões de processo (não-técnicas)
+## Decisões de processo (não-técnicas)
 
 * **Relatório de decisões por branch no fechamento** (este arquivo) em vez de CHANGELOG incremental por commit — decisão do grupo, priorizando baixo atrito; commit messages decentes continuam como registro atômico.
 * Fluxo de trabalho: o agente registra sessões na memória interna automaticamente; o relatório final será gerado cruzando memória + `git diff main..HEAD` + histórico da conversa.
-* **Ledger do pipeline** (desenhado 2026-11-13, pendente de implementação): tabela `pipeline_manifest` — uma linha por etapa×edição com o contrato de execução (linhas, indicadores com dados, recusa, SHA-256), substituindo os fail-fasts hardcoded do bronze_to_silver (que estouram para 2019 e até para re-runs de 2024 no schema união: 403 colunas vs. 360 esperadas) e padronizando as guards de fronteira com as funções de verificação `validar_igual`/`contrato_da_edicao` (família `validar_*`). Desenho completo em `docs/arquitetura/pipeline_manifest.md` (renomeado de `pipeline_ledger.md` em 13/11 — doc nomeado pela tabela que documenta). Correção irmã: `userMetadata` não chega nos MERGEs do upsert (histórico mostra None) — setar `spark.databricks.delta.commitInfo.userMetadata` no passo 6.
+* **Ledger do pipeline** (desenhado como decisão de processo, implementado na seção seguinte): tabela `pipeline_manifest` — uma linha por etapa×edição com o contrato de execução (linhas, indicadores com dados, recusa, SHA-256), substituindo os fail-fasts hardcoded do bronze_to_silver (que estouram para 2019 e até para re-runs de 2024 no schema união: 403 colunas vs. 360 esperadas) e padronizando as guards de fronteira com as funções de verificação `validar_igual`/`contrato_da_edicao` (família `validar_*`). Desenho completo em `docs/arquitetura/pipeline_manifest.md` (renomeado de `pipeline_ledger.md` — doc nomeado pela tabela que documenta). Correção irmã: `userMetadata` não chega nos MERGEs do upsert (histórico mostra None) — setar `spark.databricks.delta.commitInfo.userMetadata` no passo 6.
+
+---
+
+## Ledger pipeline_manifest implementado (desenho, itens 1 a 4)
+
+### Mudanças (7 arquivos)
+
+* **env_functions** - funções do ledger: `gravar_linha_manifest` (MERGE na chave etapa+ano_edicao; cria a tabela na primeira gravação; `detalhes` como MAP), `contrato_da_edicao` (aborta com instrução quando ausente e confere as tabelas físicas declaradas - DROP manual = contrato desmentido), `validar_igual` + `resumo_validacoes` (fail-fast acumulado que estoura em bloco - padrão do Step 9 da gold). Correção irmã no passo 6 do upsert e no ledger: userMetadata via conf de sessão pelo helper `_set_user_metadata`.
+* **env_variables** - `manifest_tbl = munic_catalog.gold.pipeline_manifest`.
+
+* **ingest_to_landing** - %run do env_functions; `get_file_sha256` retorna o hash; o loop por edição declara a linha `landing` (SHA-256 real + detalhes: arquivo, tamanho_mb, url_origem, baixado_em, ja_existia). Aviso de divergência: se o SHA calculado difere do último declarado no ledger (arquivo excluído e baixado de novo com outro conteúdo, origem alterada no IBGE ou arquivo substituído), imprime AVISO com os dois hashes e grava `detalhes.sha_anterior_divergente` - a linha landing nunca é atualizada em silêncio. Verificado nos dois ramos: SHA idêntico (sem aviso, atualização normal) e SHA divergente (AVISO + sha_anterior_divergente no MAP). baixado_em corrigido: agora é o momento em que o arquivo chegou ao volume - now() se o run baixou, mtime do arquivo se já existia (nunca um agora fabricado para arquivo que não baixamos). Ambos documentados no desenho (nova seção 5.6). Refatoração em função: a declaração da landing saiu do loop da ingestão para gravar_linha_landing (env_functions, junto da família do ledger - mesmo padrão das funções de detecção do XLSX); get_file_sha256 e o import hashlib foram removidos do notebook (dobra de lógica) e a célula 7 ficou só com o loop download + declaração. Testado nos dois ramos após a refatoração.
+* **landing_to_bronze** - linha `bronze` com linhas/indicadores-com-dados/recusa_total medidos após o upsert, SHA-256 refeito do XLSX (elo de linhagem) e detalhes (info_com_dados, gov_com_dados, dict_linhas, schema_uniao).
+* **bronze_to_silver** - asserts hardcoded (360/5570/2520) substituídos por `validar_igual` contra o contrato da bronze (Step 5, fail-fast e Step 8); fail-fast movido para ANTES da migração de schema (run reprovado morre sem deixar a silver meio-migrada); descarte das colunas 100% nulas da edição (silver por edição: 360 em 2024, 307 em 2019 - resolve os 403 vs. 360 do schema união); linha `silver` declarada após o Step 8; célula de debug e fail-fast antigo removidas.
+
+* **silver_to_gold** - Step 1 valida contra o contrato silver/edição (indicadores com dados, municípios) e despivotiza só as colunas com dados da edição; linha `gold` declarada após o Step 9, fechando o invariante da recusa (bronze até gold) e reportando checks_pass/fact_linhas/âncoras/radar em detalhes.
+* **bronze_quality_profiling** - %run do env_functions; linha `profiling` quando persistir_tabelas=sim (contrato = indicadores com dados; universo perfilado, saltos, drift, faixas e LGPD em detalhes).
+
+### Refatoração: verificação e declaração separadas (landing)
+
+* `verificar_arquivo_landing` (env_functions): calcula o SHA-256 do arquivo, avisa divergência contra o último declarado e monta `baixado_em` honesto + `detalhes`; retorna `(sha256_xlsx, detalhes)` — não grava nada.
+* `gravar_linha_manifest` segue como único ponto de gravação: a ingestão chama `verificar_arquivo_landing` e depois `gravar_linha_manifest(etapa="landing", ...)`, no mesmo padrão de declaração das demais etapas.
+* Substitui a `gravar_linha_landing` (que gravava internamente), eliminando a impressão de que existiria uma função `gravar_linha_*` por etapa.
+* Nome `verificar_*` (não `validar_*`): no projeto, `validar_*` estoura quando reprova (ex.: `validar_igual`); a divergência de SHA é AVISO, não aborto — o nome reflete isso.
+* Alternativa descartada: `if etapa == "landing"` dentro do `gravar_linha_manifest` — esconderia leitura de arquivo do disco dentro do gravador genérico e abriria precedente para um ramo por etapa, a sopa de flags em versão introvertida.
+* Validado com execução de ponta a ponta do ingest_to_landing (serverless): downloads ignorados, sem AVISO de divergência, linhas landing 2019/2024 atualizadas com `baixado_em` do mtime real.
+
+### Organização do output da ingestão
+
+* Cabeçalho por edição no loop da ingestão (separador `---` + `Edição {year}`) abrindo cada bloco: download → verificação → linha do ledger.
+* O print da verificação mostra também o caminho do arquivo no volume (`Volume : ...`).
+* `gravar_linha_manifest` suprime as ~2 linhas em branco que o commit do MERGE da Delta emite no stdout em compute serverless: o MERGE executa com o stdout capturado e só as linhas com conteúdo são reimpressas — o espaçamento entre blocos de edição fica de exatamente uma linha em branco.
+* Cabeçalho mantido no loop (não dentro do `download_file`): o rótulo `Edição {year}` é um conceito da iteração, não do download — a função utilitária não recebe o ano e imprimiria cabeçalhos indevidos em chamadas fora do loop.
+
+### Descoberta em execução (userMetadata)
+
+Em compute serverless, a conf `spark.databricks.delta.commitInfo.userMetadata` é CONFIG_NOT_AVAILABLE (SQLSTATE 42K0I) - nem spark.conf.set nem SET SQL funcionam; o userMetadata do MERGE só chega ao histórico em clusters clássicos. O helper tenta setar, avisa UMA vez e segue sem interromper; nesses MERGEs a trilha fica com operation/timestamp do DESCRIBE HISTORY, e a auditoria declarativa (quem, o quê, a partir de qual SHA-256) é papel do ledger. Documentado no desenho (seção 6).
+
+### Evidência (execução real, testes de unidade do ledger)
+
+* Linhas `landing` de 2024 e 2019 gravadas com SHA-256 real dos XLSX da landing; tabela nasce no primeiro gravar_linha_manifest.
+* MERGE idempotente: 2 regravações da mesma chave mantêm 1 linha (chave etapa+ano_edicao, sem duplicação).
+* Ramos da guard: contrato ausente gera instrução (rodar a etapa primeiro); tabela declarada inexistente gera contrato desmentido; validar_igual acumula FAILs e resumo_validacoes estoura com todas de uma vez, citando o contexto dos detalhes.
 
 ---
 
 ## Pendências da branch
 
-* **Silver 2019**: investigar o fail-fast que recusou o `bronze_to_silver` (provável causa: dicionário 2019 — 307 linhas — não cobre colunas de identidade renomeadas em relação a 2024).
+* **Silver 2019**: investigar o fail-fast que recusou o bronze_to_silver (provável causa: dicionário 2019 - 307 linhas - não cobre colunas de identidade renomeadas em relação a 2024). Com o ledger, o mesmo teste agora valida contra o contrato da bronze - reexecutar para confirmar.
+* **Re-run do zero do pipeline (destrutivo: apaga as 14 tabelas)** para popular o ledger de ponta a ponta e validar as fronteiras bronze-silver-gold com os números reais (5570/360/2520 em 2024) - aguarda confirmação do usuário.
 * Gold 2019 (após silver) e camada semantic por edição.
-* Re-run read-only do profiling 2024 para atualizar os outputs do notebook (hoje exibindo 2019 — cosmético; o mecanismo já foi verificado).
-* Célula de debug `print(ano_edicao)` no bronze_to_silver (nuid fb101c39) — remover antes do commit?
-* Flowchart do modelo gold adicionado pelo usuário ao profiling — avaliar mudança para o silver_to_gold.
-* `reference_year` está em **2024** — religar para 2019 ao retomar a Etapa 4 (silver/gold 2019).
+* Re-run read-only do profiling 2024 para atualizar os outputs do notebook (hoje exibindo 2019 - cosmético; o mecanismo já foi verificado).
+* Flowchart do modelo gold adicionado pelo usuário ao profiling - avaliar mudança para o silver_to_gold.
+* reference_year está em 2024 - religar para 2019 ao retomar a Etapa 4 (silver/gold 2019).
 
 ## Commits da branch
 
-| Hash | Data | Mensagem |
-| --- | --- | --- |
-| `4dbb042` | 2026-11-09 | feat: multi-edição em ingest_to_landing |
-| (pendente) | 2026-11-12/13 | feat: multi-edição no landing_to_bronze e dq_* por edição no bronze_quality_profiling — acúmulo de 7 arquivos descrito acima |
+| Hash | Mensagem |
+| --- | --- |
+| `4dbb042` | feat: multi-edição em ingest_to_landing |
+| (pendente) | feat: multi-edição no landing_to_bronze e dq_* por edição no bronze_quality_profiling |
+| (pendente) | feat: ledger pipeline_manifest — contrato por edição nas fronteiras das etapas |

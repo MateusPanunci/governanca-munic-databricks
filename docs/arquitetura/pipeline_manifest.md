@@ -1,6 +1,6 @@
 # Tabela `pipeline_manifest` — o ledger do pipeline (contrato de execução por etapa e edição)
 
-> **Status: desenho aprovado em conversa (2026-11-13), pendente de implementação na branch `feat/multi-edicao`.**
+> **Status: implementado na branch `feat/multi-edicao` (2026-11-13) — itens 1–4 do plano (seção 7) testados em unidade; o re-run do zero (item 5) aguarda confirmação.**
 > Este documento descreve o que é, por que existe, o schema, o que cada etapa grava e como será consumido na prática.
 
 ## 1. O que é
@@ -80,7 +80,7 @@ Números reais verificados (2024) para tornar concreto:
 
 | Etapa | Colunas contratuais | `detalhes` (exemplos) |
 | --- | --- | --- |
-| **landing** | `sha256_xlsx` preenchido; linhas/indicadores/recusa NULL (é arquivo, não tabela) | `{arquivo, tamanho_mb, url_origem, baixado_em, ja_existia}` |
+| **landing** | `sha256_xlsx` preenchido; linhas/indicadores/recusa NULL (é arquivo, não tabela) | `{arquivo, tamanho_mb, url_origem, baixado_em, ja_existia}` — e `sha_anterior_divergente` quando o SHA recalculado difere do último declarado (seção 5.6) |
 | **bronze** | linhas 5570, indicadores 360, recusa 2520 | `{info_com_dados: "198", gov_com_dados: "162", dict_linhas: "358", schema_uniao: "221+182"}` |
 | **profiling** | indicadores 406 (colunas perfiladas); recusa NULL | `{funil_mantidas, saltos_candidatos: "171", drift: "86", faixas_vies: "7", lgpd: "coletada"}` |
 | **silver** | linhas 5570, indicadores 360 (shape da edição), recusa 2520 preservada | `{schema_total: "372", estados_preservados: "6", tipo_resposta: "StringType"}` |
@@ -149,11 +149,23 @@ O `detalhes` **não entra nos asserts por padrão** — por desenho: o núcleo d
 
 Em resumo: o MAP não é depósito de números inúteis — é onde mora o **diagnóstico** que torna as falhas do contrato rapidamente explicáveis.
 
+### 5.6 Integridade do insumo da landing (aviso de divergência)
+
+A ingestão verifica o arquivo com `verificar_arquivo_landing` (em `env_functions`, junto da família do ledger): recalcula o SHA-256 em **todo** run (mesmo de arquivo já existente) e o compara com o último declarado na linha `landing/edição`, retornando os valores prontos — quem grava é o `gravar_linha_manifest`, chamado pela própria ingestão, no mesmo padrão de declaração de todas as etapas. Se divergiu — arquivo excluído e baixado de novo com outro conteúdo, origem alterada no IBGE ou arquivo substituído manualmente — imprime um **AVISO** com os dois hashes e grava o anterior em `detalhes.sha_anterior_divergente`: a linha é atualizada com o SHA novo, mas **nunca em silêncio** (é o sinal de que o insumo da cadeia — bronze e silver amarradas à mesma hash — precisa de reprocessamento consciente). Se o re-download após exclusão traz o mesmo conteúdo, o caso normal do IBGE, o SHA bate: `ja_existia` vira "false", sem aviso — só divergência de **conteúdo** importa.
+
+O `detalhes.baixado_em` segue a mesma honestidade: é o momento em que o arquivo **chegou ao volume** — `now()` quando este run baixou, ou o **mtime do arquivo** quando ele já existia. Nunca um "agora" fabricado para um arquivo que não baixamos.
+
+Semântica de exclusão: enquanto o arquivo está apagado, o ledger mantém o último estado declarado (é declarativo — não monitora o volume em tempo real); no re-run a ingestão re-baixa e o MERGE atualiza a mesma linha.
+
 ## 6. Correção irmã (mesma iniciativa)
 
 O `userMetadata` não está chegando nos MERGEs do `upsert_delta_table` (histórico mostra `None` em todos, inclusive pós-refatoração). O caminho `df.write.option("userMetadata")` funciona para saveAsTable; o MERGE pela API do Delta exige a conf de sessão `spark.databricks.delta.commitInfo.userMetadata` — a setar no passo 6 do upsert. Sem isso, a trilha "quem gravou e por quê" fica furada, e o ledger cobre só metade da auditoria.
 
+**Implementado (2026-11-13), com uma limitação descoberta em execução**: em compute **serverless** essa conf de sessão é `CONFIG_NOT_AVAILABLE` (SQLSTATE 42K0I) — nem `spark.conf.set` nem `SET` SQL funcionam (o `userMetadata` só chega ao histórico em clusters clássicos). O passo 6 do upsert e o `gravar_linha_manifest` usam o helper `_set_user_metadata`, que tenta setar, avisa **uma única vez** quando indisponível e segue sem interromper. Nesses MERGEs a trilha fica com operation/timestamp do `DESCRIBE HISTORY`; a auditoria declarativa completa (quem, quê, a partir de qual SHA-256) é o papel do próprio ledger.
+
 ## 7. Plano de implementação
+
+> **Status (2026-11-13): itens 1–4 implementados e testados em unidade** — funções do ledger no `env_functions`, linha `landing` para 2024 e 2019 com SHA-256 real, MERGE idempotente confirmado, ramos da guard verificados (contrato ausente → instrução; tabela dropada → "contrato desmentido"; fail-fast em bloco no `resumo_validacoes`). O item 5 (re-run do zero, destrutivo: apaga as 14 tabelas) aguarda confirmação do usuário.
 
 1. Funções de verificação `validar_igual`/`contrato_da_edicao` no `env_functions` (padrão do Step 9 generalizado).
 2. `landing_to_bronze` grava a linha `bronze` do ledger (e `ingest_to_landing` a linha `landing` com SHA-256 — já calculado na ingestão).
