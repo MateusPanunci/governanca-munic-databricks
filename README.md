@@ -62,7 +62,7 @@ O fluxo analítico segue a arquitetura Medallion (landing → bronze → silver 
               │
  ┌────────────▼────────────┐
  │ bronze_quality_profiling│  Diagnóstico empírico das 6 dimensões de qualidade de dados (Etapa 2)
- │ [governance notebook]   │  Auditoria de completude, validade de domínios, unicidade e skip-logic; gera as tabelas gold.dq_*
+ │ [pipeline notebook]     │  Auditoria de completude, validade de domínios, unicidade e skip-logic; gera as tabelas gold.dq_*
  └────────────┬────────────┘
               │
  ┌────────────▼────────────┐
@@ -103,10 +103,8 @@ governanca-munic-databricks/
 │   ├── ingest_to_landing            # Etapa 1: download do XLSX oficial → Volume landing
 │   ├── landing_to_bronze            # Etapa 1: XLSX → tabelas Delta brutas + dicionário
 │   ├── bronze_to_silver             # Etapa 2/3: higienização, ajustes para etapa 3 (6 estados) e consolidação
+│   ├── bronze_quality_profiling     # Etapa 2: perfilamento das variáveis por edição → tabelas gold.dq_*
 │   └── silver_to_gold               # Etapa 3: modelo dimensional, Radar IMDM e pontuação
-│
-├── governance/                      # Auditoria de qualidade (Etapa 2)
-│   └── bronze_quality_profiling     # Perfilamento das 360 variáveis → tabelas gold.dq_*
 │
 ├── exploration/                     # Análises exploratórias (fora do pipeline oficial)
 │   ├── munic_exploring_xlsx         # Primeira exploração do XLSX original do IBGE
@@ -135,7 +133,7 @@ Cada etapa possui **três evidências complementares**, permitindo avaliar o doc
 | Etapa | Entregável formal (PDF) | Código / especificação no repositório | Tabelas de conferência no Unity Catalog |
 | :--- | :--- | :--- | :--- |
 | **Etapa 1** — Ingestão e Bronze | `docs/entregas/ProjetoFinal_Etapa1.pdf` | `pipeline/ingest_to_landing`, `pipeline/landing_to_bronze`, `environment/` | Volume `landing.raw_files` e `bronze.munic_raw_*` |
-| **Etapa 2** — Qualidade e Silver | `docs/entregas/ProjetoFinal_Etapa2.pdf` | `governance/bronze_quality_profiling`, `pipeline/bronze_to_silver`, `exploration/` | `gold.dq_*` e `silver.munic_clean_*` |
+| **Etapa 2** — Qualidade e Silver | `docs/entregas/ProjetoFinal_Etapa2.pdf` | `pipeline/bronze_quality_profiling`, `pipeline/bronze_to_silver`, `exploration/` | `gold.dq_*` e `silver.munic_clean_*` |
 | **Etapa 3** — Gold dimensional e IMDM | Os próprios arquivos `.md`: `docs/arquitetura/gold_dimensional_model.md` e `docs/negocio/radar_imdm.md` | `pipeline/silver_to_gold` (+ Ajuste 1 em `bronze_to_silver`) | `gold.dim_municipio`, `gold.dim_indicador`, `gold.fact_resposta`, `gold.fact_imdm_municipio` |
 | **Etapa 4** (planejada) — Semântica e multi-edição | — | Notebook `gold_to_semantic` (Seção 5 do spec) e parametrização por edição | `munic_catalog.semantic` |
 

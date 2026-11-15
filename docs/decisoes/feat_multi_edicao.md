@@ -32,7 +32,7 @@ Objetivo da branch: o pipeline MUNIC operar **por edição**, com 2019 e 2024 co
 * **`environment/env_functions`** — `upsert_delta_table` refatorado em 6 passos nomeados (detectar tabelas/colunas → evolução de schema → deleção da edição → MERGE → estatísticas → histórico de commits), cada passo testável e auditável; funções de detecção automática de abas/colunas do XLSX (`detect_munic_sheets`, `detect_identity_renames`, tokens `ABAS_*`/`COLUNAS_IDENTIDADE`) movidas para cá.
 * **`environment/env_variables`** — fica só com os **overrides opcionais por edição** (vazios no dia a dia); `reference_year` é o único ponto de controle da edição corrente.
 * **`pipeline/landing_to_bronze`** — reestruturado: `reference_year` e detecção automática vêm do env (zero configuração por edição); célula `%pip install openpyxl`; **bloco 33 (populacao) removido** por redundância — o passo 5 do upsert já faz o null-fill.
-* **`governance/bronze_quality_profiling`** — persistência multi-edição com `gravar_por_edicao` (coluna `ano_edicao` + `replaceWhere`: cada gravação troca só a edição corrente, preservando as anteriores; tabelas antigas sem a coluna são migradas uma única vez); CSVs de apoio com sufixo da edição.
+* **`pipeline/bronze_quality_profiling`** — persistência multi-edição com `gravar_por_edicao` (coluna `ano_edicao` + `replaceWhere`: cada gravação troca só a edição corrente, preservando as anteriores; tabela legada sem a coluna interrompe com instrução de drop — o ramo de migração automática foi removido); CSVs de apoio com sufixo da edição.
 
 ### Decisões (e alternativas descartadas)
 
@@ -167,6 +167,7 @@ Em compute serverless, a conf `spark.databricks.delta.commitInfo.userMetadata` �
   * `landing_to_bronze` (célula do ledger da bronze) — removeu as versões locais `_colunas_com_dados`/`_celulas_recusa`;
   * `bronze_to_silver` — fail-fast pré-migração (o `com_dados` local virou `set(colunas_com_dados(...))` para derivar as colunas 100% nulas) e Step 8 pós-gravação;
   * `silver_to_gold` — Step 1 (fronteira silver→gold).
+* **`modulos/upsert` — prints reorganizados** (padrão do `gravar_linha_manifest`): cada chamada abre o bloco `Upsert : <tabela> — edição <ano>`; cada passo que agiu soma uma linha alinhada — `Criada :`, `Ordem  :` (reordenação), `Schema :` (+N colunas, lista truncada em 6) e `Null   :` (contagem em vez da lista gigante de colunas de outras edições) — e o MERGE fecha com as métricas do próprio commit (`MERGE  : N atualizada(s), M inserida(s)`, lidas de `history(1)` → `operationMetrics`, com fallback de chave), com o stdout capturado/reimpresso sem as ~2 linhas em branco do commit em serverless. Validado: célula do módulo re-executada (defs) + leitura das métricas contra MERGEs reais da silver (v11: 5.570 atualizadas / 0 inseridas; operações não-MERGE degradam para `?`).
 * **Terminologia "estoura"** — deprecada em código: comentários e docstrings agora dizem "interrompe o run (fail-fast)" / "interrompem juntas" (chamadas de `resumo_validacoes` no silver_to_gold e bronze_to_silver, docstrings de `check_igual`/`resumo_validacoes` no ledger).
 
 ### Decisões (e alternativas descartadas)
@@ -179,7 +180,7 @@ Em compute serverless, a conf `spark.databricks.delta.commitInfo.userMetadata` �
 
 * Corpos das funções promovidas executados contra a silver 2024 real (leitura, sessão de validação): 360 indicadores com dados, 2.520 células 'Recusa', 5.570 linhas — exatamente os números do contrato declarado pela silver; assert de confirmação passou.
 * Estrutura do hub verificada: 4 células (índice md + 3 `%run`).
-* O carregamento de ponta a ponta do hub nos notebooks consumidores (células `%run` re-executadas) não foi executado nesta sessão — fica como primeira verificação do re-run do zero (pendência).
+* O carregamento de ponta a ponta do hub nos notebooks consumidores (células `%run` re-executadas) não foi executado naquela sessão — verificado no re-run do zero (todas as execuções seguintes carregaram o hub via %run).
 
 ### Comentários-banner → markdown (varredura geral)
 
@@ -194,18 +195,60 @@ Em compute serverless, a conf `spark.databricks.delta.commitInfo.userMetadata` �
 
 * `validar_igual` → **`check_igual`** (pergunta em review: nome genérico, confuso nos call sites). O novo nome descreve o que a função faz — REGISTRA um check PASS/FAIL (obtido vs. esperado do contrato) e não interrompe — e devolve o verbo `validar_*` ao seu papel no projeto (interromper quando reprova; quem interrompe é o `resumo_validacoes`). Docstring reescrita explicando obtido/esperado/contexto. Rename aplicado em modulos/ledger (def + mds de visão geral e família), bronze_to_silver (Step 5, fail-fast, Step 8, header md), silver_to_gold (Step 1) e no índice do hub.
 * Prefixo `_` mantido nas auxiliares do upsert (pergunta em review: não seria `aux`?): é a convenção Python de função interna de módulo — diz “não faz parte da API”, enquanto `aux` não diz nada sobre o que a função faz. API pública × interna e a taxonomia de verbos (`gravar_*`, `contrato_*`, `check_*`, `resumo_*`, `verificar_*`, `detect_*`) documentadas em nova md “Convenções de nomenclatura” no hub env_functions.
+* **Critério de promoção notebook→módulo** (pergunta em review: `extract_var_code_meaning`/`obtain_filled_cells` ficam no landing_to_bronze ou vão para módulo?): função de notebook fica **local** enquanto tiver um único consumidor — como `extract_var_code_meaning`/`obtain_filled_cells`, `prepare_data_to_delta_format` e `add_ingestion_metadata` (landing_to_bronze). Promove para `modulos/` (via hub) só quando aparece um **segundo consumidor** ou se forma uma **família** do mesmo tema. Registrado na mesma md de convenções do hub.
+* **Assert do tratamento → check do lote + comentários de uma linha nos checks** (pergunta em review): o assert de StringType do Step 3 (MTIC) virou `check_igual` ("tratamento MTIC: indicadores em StringType"), com o simétrico criado para o MGOV — acumulam no lote e fecham no fail-fast pré-gravação, em vez de interromper sozinho (o MGOV nem tinha o assert). Banner da `treat_survey_indicators` reescrito: deixa claro que trata DataFrame lido da bronze (bloco mtic/mgov), não o XLSX. O comentário do fail-fast (Step 5/29) ficou enxuto, com uma linha por sub-bloco; e **toda chamada de check_igual** ganhou um comentário de uma linha dizendo o que compara (bronze_to_silver Steps 3/5/7/8 e silver_to_gold Step 1 — o Step 9 da gold usa checks locais já auto-descritivos). Docstring do `resumo_validacoes` esclarece: interrompe o run INTEIRO (nada depois da célula executa) e NÃO desfaz escritas já commitadas (MERGE Delta sem rollback — por isso o padrão do projeto é fechar o lote antes da primeira escrita); mesma clarificação na linha `resumo_*` da md de convenções do hub. Validado re-executando: fail-fast 7/7 checks PASS (lote agora inclui os 2 do tratamento), Step 8 4/4, silver_to_gold Step 1 2/2.
+
+### Inspeção de tabelas → pasta exploration
+
+* Convenção: notebook de pipeline carrega só células de produção; inspeção de tabela **persistida** (DESCRIBE HISTORY, leituras de conferência) mora na pasta `exploration/`. O critério é a dependência — tabela gravada no catálogo lê de qualquer sessão; DataFrame intermediário não gravado só existe na sessão do notebook que o construiu (inspeção dele continua lá).
+* Células 37–39 do bronze_to_silver (header md "Histórico das tabelas silver" + dois `DESCRIBE HISTORY` das tabelas silver) movidas para o novo notebook de acompanhamento em `exploration/` (nomeado `tables_vizualization` pelo usuário, depois renomeado para `tables_overview`): `%run` do env_variables, nomes de todas as tabelas do pipeline, shape por `ano_edicao` em todas as camadas, linha de cada etapa × edição no `pipeline_manifest` e, por tabela principal de cada camada, o par `SELECT *` + `DESCRIBE HISTORY`. Validado executando — e o primeiro run de acompanhamento já expôs o estado atual: bronze carrega as duas edições (info/gov 5.570 cada, dict 307/358), silver e gold só 2024, e o manifest só tem as linhas `landing` (estado anterior ao re-run do zero, executado depois — seção “Re-run do zero”).
+
+---
+
+## Re-run do zero do pipeline (ingestão → silver)
+
+### Escopo e método
+
+* Executado após confirmação explícita do usuário. **Destrutivo**: DROP das 15 tabelas (bronze 3, silver 2, gold 10 — pipeline_manifest e dq_* incluídas), verificado 0 tabelas restantes antes de reexecutar. Os XLSX da landing (volume) foram mantidos — a ingestão é idempotente e recalcula o SHA-256.
+* Ordem de execução: ingest_to_landing (duas edições) → landing_to_bronze 2024 → landing_to_bronze 2019 (toggle de `reference_year` no env) → bronze_to_silver 2024 → bronze_to_silver 2019 (confirmação da pendência da silver 2019) → `reference_year` restaurado para 2024.
+* Verificação final independente por SQL (contagens por edição nas 6 tabelas + linhas do manifest), distinta dos checks dos próprios notebooks.
+
+### Evidência
+
+* Ingestão: downloads ignorados (idempotência), manifest recriado na primeira gravação (“Criada”), linhas landing 2019/2024 com os SHA-256 reais.
+* Bronze 2024: tabelas criadas; contrato 5.570/360/2.520 (SQL independente confirmou 5.570 em info e gov; dict 358).
+* Bronze 2019: renomes de identidade detectados automaticamente (`codmun→cod_munic`, `nome_munic→desc_mun`, `classe_pop→faixa_populacao`); MERGE +5.570 linhas por tabela com evolução de schema (+23/+20 colunas da edição); dict 307; contrato 5.570/307/610.
+* Silver 2024: fail-fast 7/7 (43 colunas 100% nulas de outras edições descartadas), migração desnecessária (tabela nova), pós-gravação 4/4, linha silver/2024.
+* **Silver 2019: PASSOU** — pendência histórica resolvida. Fail-fast 7/7 contra o contrato bronze 2019 (307 indicadores, 610 recusas; 96 colunas 100% nulas descartadas), MERGE +5.570 linhas (+43 colunas da edição), pós-gravação 4/4, linha silver/2019. O guard antigo recusava por números hardcoded (360/2520) que não valem para 2019; validado por contrato, o mesmo fluxo passa para qualquer edição — a suspeita do dicionário 2019 era procedente para o guard hardcoded, não para o validado por contrato.
+* Estado final verificado (SQL): bronze info/gov 5.570 por edição (dict 307/358), silver data 5.570 por edição (dict 307/358), manifest com 6 linhas (landing×2, bronze×2, silver×2). `reference_year` de volta a 2024. Gold e dq_* permanecem ausentes (fora do escopo deste re-run — reconstrução é pendência).
+
+---
+
+## Reconstrução das dq_* e profiling no `pipeline/`
+
+### Mudanças
+
+* **`governance/bronze_quality_profiling` → `pipeline/bronze_quality_profiling`** — o notebook é etapa de fato do pipeline (produz as `dq_*`, insumo da gold, e integra a definição de "rodar o pipeline todo"). Pasta `governance/` removida (continha só ele). Referências ao caminho antigo corrigidas: guard `_exigir_dq_da_edicao` do silver_to_gold (2 mensagens de erro), README.md (diagrama, árvore — profiling listado em `pipeline/` na ordem de execução — e tabela de entregáveis) e este relatório. Os `%runs` (`../environment/...`) seguem válidos (mesma profundidade relativa). Nota: docs `.md` não são indexados pela busca de código — a varredura de caminhos usou grep direto.
+* **dq_* reconstruídas nas duas edições** (2024 executada pelo agente, 2019 pelo usuário; `persistir_tabelas="sim"`): `dq_column_profile` 403+403, `dq_skiplogic_candidates` 171 (133 sim/38 parcial) + 124 (116 sim/8 parcial), `dq_dimension_summary` 6+6, `dq_nonresponse_by_size` 7+7, `dq_dict_drift` 86 (regravada — compara as edições entre si); manifest com 8 linhas (landing/bronze/silver/profiling ×2). Os 403 por edição (antes 406) refletem a bronze recriada sem as 3 colunas legadas.
+* **Ramo morto removido do `gravar_por_edicao`** (célula 43 do profiling): a migração destrutiva (`overwrite`+`overwriteSchema`) de tabelas dq_* legadas sem `ano_edicao` virou `RuntimeError` com instrução de drop e re-executar. Pós re-run do zero nenhuma dq_* pode nascer legada — o código morto disparava bloqueios da camada de aprovação nas execuções via agente. Smoke test: célula re-executada isolada — "Gravada (edição 2019)" idempotente via `replaceWhere`, ledger ok.
+* **Ramo morto equivalente removido do `modulos/upsert` (PASSO 3a)**: `_migrar_para_particionada` (regravação `overwrite` de tabelas legado com `reference_year`) substituída por fail-fast com instrução de drop; o PASSO 3 agora é só `_reordenar_para_padrao`. Docstring e md do módulo atualizados (sem `Migrada:` na lista de prints). **Validado com tabela temporária**: criação particionada (PASSO 2), MERGE idempotente (3b + 6) e o fail-fast do legado (3a) — todos conforme esperado; tabelas de teste removidas ao final.
+* **Padrão do widget `persistir_tabelas` mudou de "nao" para "sim"** (decisão do usuário, 13/11) — supersede a decisão registrada na seção "Dependência dq_* → gold": o profiling integra o "rodar o pipeline todo" (que sempre grava as dq_*); a alternativa read-only continua disponível no dropdown.
+
+### Decisões (e alternativas descartadas)
+
+* **Migração legada vira fail-fast com instrução** (em vez de removida em silêncio ou mantida): pós re-run do zero o ramo nunca disparava — código `overwrite` morto era apenas fonte de bloqueio da camada de aprovação e ruído de leitura. O fail-fast preserva a sinalização de tabela legada sem comportamento destrutivo.
+* **`gravar()` da `dq_dict_drift` mantém `overwrite`** — por design: tabela ENTRE edições, regravada inteira a cada execução (não é ramo morto).
 
 ---
 
 ## Pendências da branch
 
-* **Silver 2019**: investigar o fail-fast que recusou o bronze_to_silver (provável causa: dicionário 2019 - 307 linhas - não cobre colunas de identidade renomeadas em relação a 2024). Com o ledger, o mesmo teste agora valida contra o contrato da bronze - reexecutar para confirmar.
-* **Re-run do zero do pipeline (destrutivo: apaga as 14 tabelas)** para popular o ledger de ponta a ponta e validar as fronteiras bronze-silver-gold com os números reais (5570/360/2520 em 2024) - aguarda confirmação do usuário.
-* Gold 2019 (após silver) e camada semantic por edição.
-* Re-run read-only do profiling 2024 para atualizar os outputs do notebook (hoje exibindo 2019 - cosmético; o mecanismo já foi verificado).
+* ~~Silver 2019~~ **RESOLVIDO no re-run do zero** (seção “Re-run do zero”): o fail-fast 7/7 passou contra o contrato da bronze 2019 (307 indicadores / 610 recusas).
+* ~~Re-run do zero do pipeline (destrutivo: apaga as 14 tabelas)~~ **EXECUTADO** (confirmação do usuário, 14/11/2026) — seção “Re-run do zero” acima.
+* **Reconstrução da gold** (as dq_* já foram recriadas nas duas edições — seção anterior): `silver_to_gold` por edição — a 2024 pode rodar já (dq_* prontas); a 2019 depende da parametrização do radar/correções/QC hardcoded 2024 (checklist da Etapa 4); camada semantic por edição.
 * **Varredura de "estoura" no `bronze_quality_profiling`** — último notebook com o termo em comentários/docstrings; substituir por "interrompe o run (fail-fast)" (mesma deprecicação aplicada nos demais).
 * Flowchart do modelo gold adicionado pelo usuário ao profiling - avaliar mudança para o silver_to_gold.
-* reference_year está em 2024 - religar para 2019 ao retomar a Etapa 4 (silver/gold 2019).
+* reference_year está em 2024 - religar para 2019 ao retomar a gold 2019 (silver das duas edições já está carregada).
 
 ## Commits da branch
 
@@ -216,4 +259,5 @@ Em compute serverless, a conf `spark.databricks.delta.commitInfo.userMetadata` �
 | `bfc942e` | docs: relatório de decisões da branch feat/multi-edicao |
 | `d553edc` | docs: desenho da tabela pipeline_manifest (contrato de execução por etapa e edição) |
 | `17da9b5` | feat: ledger pipeline_manifest — contrato por edição nas fronteiras das etapas |
-| (pendente) | refactor: env_functions em módulos (deteccao/upsert/ledger) + check_igual |
+| `c6af379` | refactor: env_functions em módulos (deteccao/upsert/ledger) + colunas_com_dados/celulas_recusa |
+| (pendente) | refactor: check_igual, profiling em pipeline/ e migrações legadas mortas removidas |

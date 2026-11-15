@@ -91,7 +91,7 @@ Observação sobre a edição 2019: indicadores com dados = **307** (134 info + 
 
 ## 5. Como será usado na prática
 
-### 5.1 As funções de verificação (em `env_functions`)
+### 5.1 As funções de verificação (em `modulos/ledger`, via hub `env_functions`)
 
 Família `validar_*` — validar = conferir contra o contrato e **interromper** se reprovar:
 
@@ -102,7 +102,7 @@ def contrato_da_edicao(etapa, ano_edicao):
     Também confirma tableExists e linhas da edição na tabela física —
     o ledger declara, a guard confere."""
 
-def validar_igual(obtido, esperado, nome_check, contexto=""):
+def check_igual(obtido, esperado, nome_check, contexto=""):
     """Confere igualdade contra o contrato; falhas acumulam e estouram
     juntas no resumo (padrão do Step 9 do silver_to_gold: checks PASS/FAIL)."""
 ```
@@ -119,12 +119,12 @@ Depois:
 
 ```python
 manifest = contrato_da_edicao(etapa="bronze", ano_edicao=ano_edicao)
-validar_igual(info_count,                manifest["linhas"],       "linhas_info")
-validar_igual(len(indicator_cols_final), manifest["indicadores"],  "indicadores_com_dados")
-validar_igual(recusa_final,              manifest["recusa_total"], "recusa_preservada")
+check_igual(info_count,                manifest["linhas"],       "linhas_info")
+check_igual(len(indicator_cols_final), manifest["indicadores"],  "indicadores_com_dados")
+check_igual(recusa_final,              manifest["recusa_total"], "recusa_preservada")
 ```
 
-**Ordem de execução** — os checks `validar_*` rodam **antes de qualquer escrita na silver**, inclusive da migração de schema (`CHANGE COLUMN` boolean→StringType e o `overwriteSchema` do upsert). Assim, um run reprovado morre sem deixar a tabela em estado meio-migrado. Hoje ocorre o contrário: a célula de migração toca a silver primeiro e o fail-fast valida só depois — um run reprovado que migrou deixaria a tabela alterada com o pipeline abortado (estado intermediário indesejado).
+**Ordem de execução** — os checks do fail-fast (`check_igual` + `resumo_validacoes`) rodam **antes de qualquer escrita na silver**, inclusive da migração de schema (`CHANGE COLUMN` boolean→StringType). Assim, um run reprovado morre sem deixar a tabela em estado meio-migrado. (No dia do desenho, 13/11, era o contrário — a migração tocava a silver primeiro e o fail-fast só validava depois; corrigido em 14/11 e verificado no re-run do zero: fail-fast 7/7 antes da primeira escrita.)
 
 ### 5.3 Fronteiras cobertas
 
@@ -144,7 +144,7 @@ validar_igual(recusa_final,              manifest["recusa_total"], "recusa_prese
 O `detalhes` **não entra nos asserts por padrão** — por desenho: o núcleo do fail-fast permanece enxuto e determinístico (só o contrato), enquanto o contexto evolui livre, sem migração de schema. Mas ele **participa** da verificação em três frentes concretas:
 
 1. **Triagem quando algo reprova**: a mensagem de erro dos `validar_*` cita os valores de `detalhes` da linha para localizar o desvio. Ex.: `indicadores` divergiu → `detalhes.info_com_dados` e `detalhes.gov_com_dados` mostram em qual das duas fontes está a diferença — sem segunda consulta.
-2. **Checks pontuais**: qualquer verificação pode ler o MAP durante investigação (`validar_igual(obtido, manifest["detalhes"]["gov_com_dados"], ...)`). O MAP é acessível ao `contrato_da_edicao` como qualquer campo; apenas não integra o contrato por padrão.
+2. **Checks pontuais**: qualquer verificação pode ler o MAP durante investigação (`check_igual(obtido, manifest["detalhes"]["gov_com_dados"], ...)`). O MAP é acessível ao `contrato_da_edicao` como qualquer campo; apenas não integra o contrato por padrão.
 3. **Promoção a contrato**: quando uma cifra do MAP passa a ser sistematicamente validada (ex.: `checks_pass` da gold virando critério de bloqueio), ela **sobe para coluna contratual**. A fronteira entre contexto e contrato é móvel — e movê-la é explícito e rastreável.
 
 Em resumo: o MAP não é depósito de números inúteis — é onde mora o **diagnóstico** que torna as falhas do contrato rapidamente explicáveis.
@@ -167,7 +167,7 @@ O `userMetadata` não está chegando nos MERGEs do `upsert_delta_table` (histór
 
 > **Status (2026-11-13): itens 1–4 implementados e testados em unidade** — funções do ledger no `env_functions`, linha `landing` para 2024 e 2019 com SHA-256 real, MERGE idempotente confirmado, ramos da guard verificados (contrato ausente → instrução; tabela dropada → "contrato desmentido"; fail-fast em bloco no `resumo_validacoes`). O item 5 (re-run do zero, destrutivo: apaga as 14 tabelas) aguarda confirmação do usuário.
 
-1. Funções de verificação `validar_igual`/`contrato_da_edicao` no `env_functions` (padrão do Step 9 generalizado).
+1. Funções de verificação `check_igual`/`contrato_da_edicao` no `env_functions` (padrão do Step 9 generalizado).
 2. `landing_to_bronze` grava a linha `bronze` do ledger (e `ingest_to_landing` a linha `landing` com SHA-256 — já calculado na ingestão).
 3. `bronze_to_silver`: fail-fast migra para funções + ledger; descarte das colunas 100% nulas na edição (silver por edição, 360/307); validação antes da migração de schema; remover célula debug `print(ano_edicao)`.
 4. `silver_to_gold` grava a linha `gold` (e o profiling, a sua); guards passam a ler o ledger.
