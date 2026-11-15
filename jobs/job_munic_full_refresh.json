@@ -1,0 +1,57 @@
+{
+  "name": "job_munic_full_refresh",
+  "max_concurrent_runs": 1,
+  "queue": { "enabled": true },
+  "performance_target": "PERFORMANCE_OPTIMIZED",
+  "parameters": [
+    { "name": "reference_year", "default": "2024" }
+  ],
+  "tasks": [
+    {
+      "task_key": "ingest_to_landing_task",
+      "notebook_task": {
+        "notebook_path": "/Workspace/Users/mateus.panunci@uel.br/governanca-munic-databricks/pipeline/ingest_to_landing",
+        "source": "WORKSPACE"
+      }
+    },
+    {
+      "task_key": "landing_to_bronze_task",
+      "depends_on": [ { "task_key": "ingest_to_landing_task" } ],
+      "notebook_task": {
+        "notebook_path": "/Workspace/Users/mateus.panunci@uel.br/governanca-munic-databricks/pipeline/landing_to_bronze",
+        "source": "WORKSPACE",
+        "base_parameters": { "reference_year": "{{job.parameters.reference_year}}" }
+      }
+    },
+    {
+      "task_key": "bronze_quality_profiling_task",
+      "depends_on": [ { "task_key": "landing_to_bronze_task" } ],
+      "notebook_task": {
+        "notebook_path": "/Workspace/Users/mateus.panunci@uel.br/governanca-munic-databricks/pipeline/bronze_quality_profiling",
+        "source": "WORKSPACE",
+        "base_parameters": { "reference_year": "{{job.parameters.reference_year}}" }
+      }
+    },
+    {
+      "task_key": "bronze_to_silver_task",
+      "depends_on": [ { "task_key": "landing_to_bronze_task" } ],
+      "notebook_task": {
+        "notebook_path": "/Workspace/Users/mateus.panunci@uel.br/governanca-munic-databricks/pipeline/bronze_to_silver",
+        "source": "WORKSPACE",
+        "base_parameters": { "reference_year": "{{job.parameters.reference_year}}" }
+      }
+    },
+    {
+      "task_key": "silver_to_gold_task",
+      "depends_on": [
+        { "task_key": "bronze_quality_profiling_task" },
+        { "task_key": "bronze_to_silver_task" }
+      ],
+      "notebook_task": {
+        "notebook_path": "/Workspace/Users/mateus.panunci@uel.br/governanca-munic-databricks/pipeline/silver_to_gold",
+        "source": "WORKSPACE",
+        "base_parameters": { "reference_year": "{{job.parameters.reference_year}}" }
+      }
+    }
+  ]
+}
