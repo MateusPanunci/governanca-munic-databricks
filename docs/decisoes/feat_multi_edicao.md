@@ -241,13 +241,49 @@ Em compute serverless, a conf `spark.databricks.delta.commitInfo.userMetadata` �
 
 ---
 
+## Parametrização da gold multi-edição (Step 6 + QC do Step 9)
+
+> Mudanças pós-`aff8eed` no `pipeline/silver_to_gold`, validadas na edição 2024 e **ainda não commitadas**. Preparam a gold para rodar por edição; a decisão pendente da célula 19 está no fim da seção.
+
+### Mudanças
+
+* **Step 9 — QC (Seção 6), agora 21 checks**: todos os esperados passam a ser derivados da edição corrente, sem literal de 2024 — nº de variáveis e temas TIC/GOV das colunas com dados (`indicator_cols`); âncoras, regras e peso por dimensão do radar (Step 3) ∩ colunas com dados; linhas da fact = municípios × indicadores; Recusa contra o contrato da silver no ledger; classes fecham o total (a distribuição exata das classes saiu — passa a ser consequência da edição); IMDM NULL = municípios com Recusa (medido na própria fact); peso máximo por dimensão = nº de itens da edição. Checks condicionais à presença na edição: `mtic30`, `mgov05`, `mgov15`/`mgov16`; a verificação das 7 reconstruídas passou a testar apenas as presentes (antes, numa edição sem elas, a lista vazia dava falso PASS).
+* **Ledger da gold**: `detalhes.ancoras` = âncoras com peso na edição; `detalhes.radar_itens` = itens do radar presentes na edição (mapa ∩ colunas com dados).
+* **Step 6 — pontuação por item**: cada item (6 formatos, escada, 2 grupos, 3 escalonados, `mgov05`) só é construído se TODAS as suas variáveis têm dados na edição — item sem dados sai do denominador (elimina o 0.0 com peso que penalizava o município por pergunta que não existiu no ano); total esperado de âncoras de item derivado do radar ∩ edição (assert sem o literal 13); AVISO de rótulo fora do mapa nos escalonados e AVISO quando `mgov04` não tem dados (exceção do `mgov05` não avaliável).
+* **Radar explícito nos escalonados**: valores de "ausência" do questionário 2024 entraram no mapa com 0.0 explícito — `mtic10` ('Em elaboração', 'Não possui página'), `mgov09` ('Não'), `mtic29` ('Não há qualquer modelo de acessibilidade digital') — antes pontuavam 0.0 silenciosamente pelo `otherwise` da regra.
+
+### Decisão (e alternativa descartada)
+
+* **Radar 2024 como definição estrutural única**: dimensões, âncoras e regras valem para toda edição; a presença por edição deriva das colunas com dados (mesmo princípio do contrato do ledger). A renormalização por edição (se houver) é decisão do dono do radar, não do código.
+* **Descartado**: mapa/radar por edição no código — duplicaria a configuração e viraria a "sopa de flags" que o desenho evita; a derivação por presença cobre o caso sem perda.
+
+### Evidência (edição 2024, pós-mudança)
+
+* QC 21/21 PASS com os esperados derivados — os mesmos números do run anterior, agora calculados em vez de escritos à mão.
+* Step 6: 13/13 âncoras de item, 0 itens pulados, 0 avisos.
+* Prova independente: `item_scores` recomputado comparado à `fact_resposta` 2024 persistida — soma de pontos e nº de linhas idênticos nas 13 âncoras (diff 0.0; 5.570 linhas cada). A gold 2024 fica inalterada.
+
+### Cenário 2019 hoje (rodar `reference_year=2019` sem mexer na célula 19) — verificado por leitura da silver 2019
+
+* Cobertura real: 307 indicadores com dados; **D5/LGPD não coletada** (`mgov32`/`mgov34`/`mgov35`/`mgov36` com 0 células não-nulas); Recusa medida nas 360 colunas do schema união: 524 células em **2 municípios**.
+* O pipeline executa até a célula 19 **e grava** dim_municipio/dim_indicador/fact_resposta/fact_imdm 2019 (MERGE por chave; o QC da gold fecha DEPOIS das escritas — não desfaz). A `fact_imdm` 2019 nasce com **IMDM NULL para TODOS os municípios**: a soma das 5 dimensões inclui `score_d5` NULL.
+* O QC reprova e interrompe o run: "IMDM NULL = municípios com Recusa" (5570 vs 2) e "municípios válidos" (0 vs 5568) FAIL; o check "scores dentro de [0, 100]" em seguida estoura com 0 linhas válidas (min/max = None) — a linha `gold` do ledger NÃO é gravada. Recuperação por re-run após a decisão (MERGE idempotente por chave).
+* **Rótulos divergentes 2019 já identificados** (os AVISOs do Step 6 listam ao rodar): `mgov09` — 2019 usa 'Sim, **por** instrumento legal' vs 2024 'Sim, **instituída por** instrumento legal' (é o nível pleno — sem mapeamento pontuaria 0.0 silencioso); `mtic29` — 2019 'Modelo global acessibilidade digital (WCAG/WAI)' vs 2024 'Modelo global **de** acessibilidade digital (WCAG/WAI)'. `mtic10` já bate 100% com o mapa explícito.
+
+### DECISÃO PENDENTE (dono do radar multi-ano): IMDM em edição com dimensão ausente (célula 19)
+
+* **Opção A — média das dimensões presentes (sugerida)**: IMDM = soma dos scores não-nulos ÷ nº de dimensões pontuadas do município. Mesma filosofia do denominador efetivo já usada no nível de item/dimensão; penalizar por dimensão que o IBGE não perguntou mede o questionário, não o município. Sem impacto em 2024 (todo município válido tem as 5 dimensões pontuadas — validável por diff contra a tabela persistida).
+* **Opção B — manter a média das 5**: IMDM NULL quando falta dimensão. Preserva a definição estrita; entrega 2019 sem índice global (apenas scores por dimensão).
+* **Comparabilidade cross-edição (vale para qualquer opção)**: IMDM 2019 (média de 4) e 2024 (média de 5) não são estritamente comparáveis — comparação entre edições deve usar o score por dimensão ou uma renormalização definida no radar multi-ano. Acompanhar com: registro das dimensões participantes por edição no ledger (`detalhes.dimensoes_edicao`) e proteção do check [0, 100] para o caso de 0 linhas válidas.
+
+---
+
 ## Pendências da branch
 
 * ~~Silver 2019~~ **RESOLVIDO no re-run do zero** (seção “Re-run do zero”): o fail-fast 7/7 passou contra o contrato da bronze 2019 (307 indicadores / 610 recusas).
 * ~~Re-run do zero do pipeline (destrutivo: apaga as 14 tabelas)~~ **EXECUTADO** (confirmação do usuário, 14/11/2026) — seção “Re-run do zero” acima.
-* **Reconstrução da gold** (as dq_* já foram recriadas nas duas edições — seção anterior): `silver_to_gold` por edição — a 2024 pode rodar já (dq_* prontas); a 2019 depende da parametrização do radar/correções/QC hardcoded 2024 (checklist da Etapa 4); camada semantic por edição.
-* **Varredura de "estoura" no `bronze_quality_profiling`** — último notebook com o termo em comentários/docstrings; substituir por "interrompe o run (fail-fast)" (mesma deprecicação aplicada nos demais).
-* Flowchart do modelo gold adicionado pelo usuário ao profiling - avaliar mudança para o silver_to_gold.
+* **Reconstrução da gold** (as dq_* já foram recriadas nas duas edições): 2024 rodada e revalidada 21/21 após a parametrização (seção “Parametrização da gold multi-edição”); a 2019 depende da **decisão da célula 19** (IMDM em edição com dimensão ausente) e do mapeamento dos rótulos divergentes 2019 (`mgov09`, `mtic29`); camada semantic por edição.
+* ~~Varredura de "FAIL" no `bronze_quality_profiling`~~ **RESOLVIDO** — varredura aplicada ao profiling (mesma deprecicação dos demais notebooks: "interrompe o run (fail-fast)").
 * reference_year está em 2024 - religar para 2019 ao retomar a gold 2019 (silver das duas edições já está carregada).
 
 ## Commits da branch
@@ -260,4 +296,4 @@ Em compute serverless, a conf `spark.databricks.delta.commitInfo.userMetadata` �
 | `d553edc` | docs: desenho da tabela pipeline_manifest (contrato de execução por etapa e edição) |
 | `17da9b5` | feat: ledger pipeline_manifest — contrato por edição nas fronteiras das etapas |
 | `c6af379` | refactor: env_functions em módulos (deteccao/upsert/ledger) + colunas_com_dados/celulas_recusa |
-| (pendente) | refactor: check_igual, profiling em pipeline/ e migrações legadas mortas removidas |
+| `aff8eed` | refactor: check_igual, profiling em pipeline/ e migrações legadas mortas removidas |
