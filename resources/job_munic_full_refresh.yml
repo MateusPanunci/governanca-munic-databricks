@@ -1,0 +1,45 @@
+# Job orquestrador multi-edicao (opcional): roda o job_munic_pipeline COMPLETO
+# para CADA edicao registrada em munic_source_url_map (env_variables) — as chaves
+# do mapa sao a fonte da verdade dos anos. Primeiro o task list_editions importa
+# o env_variables e publica as chaves como task value "years"; o for_each entao
+# executa UMA edicao por vez, em sequencia (concurrency 1).
+#
+# Por que sequencial: todas as edicoes gravam nas MESMAS tabelas fisicas de cada
+# camada — o ano e apenas a COLUNA ano_edicao, nao uma tabela separada. Duas
+# escritas simultaneas na mesma tabela Delta = transacoes concorrentes sobre os
+# mesmos arquivos: conflito de concorrencia otimista (um run falha com
+# ConcurrentModificationException) ou leitura de estado pela metade. O pipeline
+# job tambem tem max_concurrent_runs 1, o que reforça a fila.
+
+resources:
+  jobs:
+    munic_full_refresh:
+      name: job_munic_full_refresh
+      description: >-
+        Orquestrador multi-edicao (for_each): detecta as edicoes registradas em
+        munic_source_url_map (env_variables) via task list_editions e roda o
+        job_munic_pipeline completo para cada ano, em sequencia. Use para backfill
+        de todas as edicoes; para uma unica edicao, rode o job_munic_pipeline direto.
+      max_concurrent_runs: 1
+      tasks:
+        # 1) Detecta as edicoes: chaves de munic_source_url_map, publicadas como
+        #    task value "years" pelo notebook list_editions. Sem lista manual de anos.
+        - task_key: list_editions
+          notebook_task:
+            notebook_path: ${workspace.file_path}/pipeline/list_editions
+
+        # 2) Uma execucao do pipeline por edicao, em sequencia (nunca paralelo).
+        #    {{input}} = valor da iteracao corrente do for_each (sintaxe atual da
+        #    documentação; {{item}} NÃO é resolvido em run_job_task.job_parameters).
+        - task_key: full_refresh_editions
+          depends_on:
+            - task_key: list_editions
+          for_each_task:
+            inputs: "{{tasks.list_editions.values.years}}"
+            concurrency: 1
+            task:
+              task_key: run_edition
+              run_job_task:
+                job_id: ${resources.jobs.munic_pipeline.id}
+                job_parameters:
+                  reference_year: "{{input}}"

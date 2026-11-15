@@ -1,0 +1,62 @@
+# Definição do job do pipeline MUNIC no bundle.
+# Caminhos relativos: ${workspace.file_path} resolve para os notebooks do
+# próprio clone, sincronizados pelo bundle deploy.
+
+resources:
+  jobs:
+    munic_pipeline:
+      name: job_munic_pipeline
+      description: >-
+        Pipeline MUNIC ponta a ponta para UMA edição por execução:
+        ingest_to_landing → landing_to_bronze → {bronze_quality_profiling ∥ bronze_to_silver} →
+        silver_to_gold. Idempotente (MERGE por ano_edicao / replaceWhere) e regido pelo ledger
+        pipeline_manifest. MULTI-EDIÇÃO: Run now com o parâmetro reference_year (default 2024).
+        Full refresh = uma execução por edição, em sequência (nunca em paralelo).
+      max_concurrent_runs: 1
+      queue:
+        enabled: true
+      performance_target: PERFORMANCE_OPTIMIZED
+      parameters:
+        - name: reference_year
+          default: ${var.reference_year}
+      tasks:
+        # Ingestão: baixa TODAS as edições do mapa de URLs, idempotente
+        # (não recebe reference_year de propósito).
+        - task_key: ingest_to_landing_task
+          notebook_task:
+            notebook_path: ${workspace.file_path}/pipeline/ingest_to_landing
+
+        - task_key: landing_to_bronze_task
+          depends_on:
+            - task_key: ingest_to_landing_task
+          notebook_task:
+            notebook_path: ${workspace.file_path}/pipeline/landing_to_bronze
+            base_parameters:
+              reference_year: "{{job.parameters.reference_year}}"
+
+        # Profiling e silver rodam em paralelo — só leem a bronze.
+        - task_key: bronze_quality_profiling_task
+          depends_on:
+            - task_key: landing_to_bronze_task
+          notebook_task:
+            notebook_path: ${workspace.file_path}/pipeline/bronze_quality_profiling
+            base_parameters:
+              reference_year: "{{job.parameters.reference_year}}"
+
+        - task_key: bronze_to_silver_task
+          depends_on:
+            - task_key: landing_to_bronze_task
+          notebook_task:
+            notebook_path: ${workspace.file_path}/pipeline/bronze_to_silver
+            base_parameters:
+              reference_year: "{{job.parameters.reference_year}}"
+
+        # A gold depende de silver + dq_* da edição (guard do ledger no Step 1).
+        - task_key: silver_to_gold_task
+          depends_on:
+            - task_key: bronze_quality_profiling_task
+            - task_key: bronze_to_silver_task
+          notebook_task:
+            notebook_path: ${workspace.file_path}/pipeline/silver_to_gold
+            base_parameters:
+              reference_year: "{{job.parameters.reference_year}}"

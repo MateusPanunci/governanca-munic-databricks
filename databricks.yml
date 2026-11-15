@@ -1,0 +1,17 @@
+# Declarative Automation Bundle — MUNIC Governança
+# Repo = fonte da verdade do job: mudanças nascem aqui (PR) e vão ao
+# workspace via bundle deploy (painel Deployments ou terminal).
+
+bundle:
+  name: munic-governanca
+
+include:
+  - resources/*.yml
+
+variables:
+  reference_year:
+    description: Edição MUNIC processada em cada execução do pipeline
+    default: "2024"
+
+# Target único (default) por enquanto. Quando houver ambiente de produção,
+# adicione targets abaixo (ex.: prod com mode: production e run_as próprio).

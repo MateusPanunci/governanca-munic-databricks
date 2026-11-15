@@ -45,7 +45,7 @@ Além dos controles implementados em código, a própria plataforma já fornece 
 
 ## Arquitetura do Pipeline e Orquestração
 
-O fluxo analítico segue a arquitetura Medallion (landing → bronze → silver → gold); as quatro primeiras etapas são orquestradas pelo job `job_munic_full_refresh` no Databricks Jobs, a etapa gold executa via notebook e a camada semântica é o próximo passo:
+O fluxo analítico segue a arquitetura Medallion (landing → bronze → silver → gold); as cinco etapas são orquestradas pelo job `job_munic_pipeline` no Databricks Jobs — definido como código no Declarative Automation Bundle do repo (`databricks.yml` + `resources/job_munic_pipeline.yml`) e criado/atualizado com `databricks bundle deploy`, com a edição processada escolhida pelo parâmetro `reference_year` (default 2024). Para processar todas as edições de uma vez, o orquestrador opcional `job_munic_full_refresh` (mesmo bundle) roda o pipeline completo para cada edição registrada em `munic_source_url_map` — uma por vez, em sequência. A explicação detalhada de operação (deploy, parâmetro, multi-edicao) está em `resources/README.md`. A camada semântica é o próximo passo:
 
 ```text
  ┌─────────────────────────┐
@@ -72,7 +72,7 @@ O fluxo analítico segue a arquitetura Medallion (landing → bronze → silver 
  └────────────┬────────────┘
               │
  ┌────────────▼──────────────┐
- │ silver_to_gold (notebook) │  Etapa 3: modelo dimensional, Radar IMDM e pontuação
+ │ silver_to_gold_task       │  Etapa 3: modelo dimensional, Radar IMDM e pontuação
  │ [pipeline/silver_to_gold] │  ➔ gold.dim_municipio | gold.dim_indicador (360 variáveis)
  │                           │  ➔ gold.fact_resposta (2.005.200 linhas) | gold.fact_imdm_municipio
  └────────────┬──────────────┘
@@ -94,9 +94,16 @@ governanca-munic-databricks/
 ├── README.md                        # Visão geral, diagrama do pipeline e mapa de entregáveis
 ├── .gitignore
 │
+├── databricks.yml                     # Declarative Automation Bundle (fonte da verdade do job)
+├── resources/
+│   ├── job_munic_pipeline.yml         # Definição do job: 5 tarefas, DAG e parâmetro reference_year
+│   ├── job_munic_full_refresh.yml     # Orquestrador opcional: pipeline completo por edição do mapa, em sequência
+│   └── README.md                      # Operação do job (deploy, parâmetro, multi-edicao)
+│
 ├── environment/                     # Configuração compartilhada — carregada via %run
 │   ├── env_variables                # Catálogo/schemas, ano de referência e fontes por edição
-│   ├── env_functions                # upsert_delta_table: MERGE compartilhado (bronze → gold)
+│   ├── env_functions                # Hub: %run dos módulos abaixo
+│   ├── modulos/                     # deteccao (abas/colunas do XLSX) | upsert (MERGE) | ledger (pipeline_manifest)
 │   └── env_setup_scripts            # Scripts de setup inicial do ambiente
 │
 ├── pipeline/                        # Camadas Medallion — execução em ordem
@@ -104,7 +111,8 @@ governanca-munic-databricks/
 │   ├── landing_to_bronze            # Etapa 1: XLSX → tabelas Delta brutas + dicionário
 │   ├── bronze_to_silver             # Etapa 2/3: higienização, ajustes para etapa 3 (6 estados) e consolidação
 │   ├── bronze_quality_profiling     # Etapa 2: perfilamento das variáveis por edição → tabelas gold.dq_*
-│   └── silver_to_gold               # Etapa 3: modelo dimensional, Radar IMDM e pontuação
+│   ├── silver_to_gold               # Etapa 3: modelo dimensional, Radar IMDM e pontuação
+│   └── list_editions                # Task do orquestrador: edições = chaves de munic_source_url_map (env_variables)
 │
 ├── exploration/                     # Análises exploratórias (fora do pipeline oficial)
 │   ├── munic_exploring_xlsx         # Primeira exploração do XLSX original do IBGE
@@ -114,7 +122,10 @@ governanca-munic-databricks/
     ├── negocio/
     │   └── radar_imdm.md            # Documentação do Radar IMDM — a ser implementado no dashboard final na Etapa 4
     ├── arquitetura/
-    │   └── gold_dimensional_model.md  # Especificação da Etapa 3: dimensional, pontuação e semantic
+    │   ├── gold_dimensional_model.md  # Especificação da Etapa 3: dimensional, pontuação e semantic
+    │   └── pipeline_manifest.md       # Desenho do ledger de execução (contrato etapa × edição)
+    ├── decisoes/
+    │   └── feat_multi_edicao.md       # Relatório de decisões e mudanças da branch feat/multi-edicao
     └── entregas/
         ├── ProjetoFinal_Etapa1.pdf  # Entregável formal da Etapa 1
         └── ProjetoFinal_Etapa2.pdf  # Entregável formal da Etapa 2
@@ -135,7 +146,7 @@ Cada etapa possui **três evidências complementares**, permitindo avaliar o doc
 | **Etapa 1** — Ingestão e Bronze | `docs/entregas/ProjetoFinal_Etapa1.pdf` | `pipeline/ingest_to_landing`, `pipeline/landing_to_bronze`, `environment/` | Volume `landing.raw_files` e `bronze.munic_raw_*` |
 | **Etapa 2** — Qualidade e Silver | `docs/entregas/ProjetoFinal_Etapa2.pdf` | `pipeline/bronze_quality_profiling`, `pipeline/bronze_to_silver`, `exploration/` | `gold.dq_*` e `silver.munic_clean_*` |
 | **Etapa 3** — Gold dimensional e IMDM | Os próprios arquivos `.md`: `docs/arquitetura/gold_dimensional_model.md` e `docs/negocio/radar_imdm.md` | `pipeline/silver_to_gold` (+ Ajuste 1 em `bronze_to_silver`) | `gold.dim_municipio`, `gold.dim_indicador`, `gold.fact_resposta`, `gold.fact_imdm_municipio` |
-| **Etapa 4** (planejada) — Semântica e multi-edição | — | Notebook `gold_to_semantic` (Seção 5 do spec) e parametrização por edição | `munic_catalog.semantic` |
+| **Etapa 4** (planejada) — Camada semântica | — | Notebook `gold_to_semantic` (Seção 5 do spec); a multi-edição já está implementada (jobs no bundle + orquestrador — ver `resources/README.md` e `docs/decisoes/feat_multi_edicao.md`) | `munic_catalog.semantic` |
 
 ---
 

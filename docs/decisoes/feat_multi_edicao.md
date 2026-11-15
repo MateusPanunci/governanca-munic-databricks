@@ -278,6 +278,30 @@ Em compute serverless, a conf `spark.databricks.delta.commitInfo.userMetadata` �
 
 ---
 
+## Job no bundle DAB + orquestrador multi-edicao (fechamento da branch)
+
+### Mudanças
+
+* **Job como código no Declarative Automation Bundle** — `databricks.yml` + `resources/job_munic_pipeline.yml` definem o `job_munic_pipeline` (5 tasks, DAG, parâmetro `reference_year`, `max_concurrent_runs: 1`, queue); o espelho manual `jobs/` (JSON + script de export) foi removido. O job implantado fica UI_LOCKED: mudanças nascem no repo e propagam por `bundle deploy`. Regras de quando deployar (notebooks e YAMLs exigem; commit/run/docs não) em `resources/README.md`.
+* **Novo orquestrador `job_munic_full_refresh`** (`resources/job_munic_full_refresh.yml`) — roda o pipeline COMPLETO para cada edição registrada, em sequência: a task `list_editions` (novo notebook `pipeline/list_editions`) importa o `env_variables`, extrai as **chaves** de `munic_source_url_map` e publica como task value `years`; o `for_each` (`concurrency: 1`) dispara um run do pipeline por ano via `run_job_task` com o `reference_year` da iteração. **Sem lista manual de anos em lugar nenhum** — a fonte da verdade continua sendo o mapa (adicionar edição = 1 linha + deploy; o orquestrador detecta sozinho).
+* **Widget `reference_year` do `env_variables` materializado no próprio notebook** — widgets só nascem quando a célula que os cria roda NO notebook; via `%run`, nascem no chamador. Nota registrada na própria célula; default 2024 preservado (edição-base do projeto).
+* **Documentação** — `resources/README.md` reescrito com a operação completa (regras de deploy, Run now/troca de ano, Repair Run vs novo Run), seção "Por que uma edição por vez (nunca em paralelo)?" e a semântica de falha do orquestrador; README principal com a nova estrutura (2 YAMLs, `pipeline/list_editions`, `environment/modulos/`, `docs/decisoes/`).
+
+### Decisões (e alternativas descartadas)
+
+* **Anos detectados em runtime no mapa (task value), não em lista manual de parâmetro de job** — alternativa descartada (parâmetro JSON `reference_years`): criaria uma segunda fonte de verdade que dessincroniza silenciosamente do mapa (edição registrada e não executada, ou o contrário).
+* **`{{input}}` (e não `{{item}}`) no `job_parameters` do `run_job_task`** — `{{item}}` não é resolvido nesse campo pela plataforma e chega literal ao job filho (sintaxe atual da documentação para o valor da iteração).
+* **Sequencial por concorrência, não por disciplina** — as edições compartilham as mesmas tabelas físicas de cada camada (o ano é a COLUNA `ano_edicao`); duas escritas simultâneas na mesma tabela Delta são transações concorrentes sobre os mesmos arquivos: a concorrência otimista rejeita uma (`ConcurrentModificationException`) ou um run lê estado pela metade. `max_concurrent_runs: 1` nos dois jobs + `concurrency: 1` no `for_each`. Tabela por edição permitiria paralelismo, mas fragmentaria a análise cross-edição (UNION em toda comparação) e a governança (N× grants/tags/lineage) — uma tabela por camada com edições como linhas é o trade-off deliberado.
+* **Falha de uma edição não bloqueia as demais** — iterações do `for_each` são independentes: a 2019 falhar não impede a 2024 de rodar. O run do orquestrador fica vermelho se QUALQUER edição falhar ("Some iterations failed"), mesmo com as outras bem-sucedidas — o veredito por edição fica sempre na aba Runs do pipeline (um run por edição, trigger "Run job task").
+
+### Execuções e evidência
+
+* Primeiro run do orquestrador (após o deploy): as 2 iterações foram criadas corretamente (o task value do `list_editions` resolveu `['2019', '2024']`), mas ambas falharam na ingest com `ValueError: invalid literal for int(): '{{item}}'` — o template não resolvido chegou literal ao job filho (visível nos parâmetros dos runs).
+* Com o fix `{{input}}` deployado, a iteração 2019 executou com `reference_year="2019"` resolvido no run do pipeline (trigger RUN_JOB_TASK) — o loop map-driven funcionando ponta a ponta.
+* `bundle validate --strict` OK em todas as mudanças de YAML.
+
+---
+
 ## Pendências da branch
 
 * ~~Silver 2019~~ **RESOLVIDO no re-run do zero** (seção “Re-run do zero”): o fail-fast 7/7 passou contra o contrato da bronze 2019 (307 indicadores / 610 recusas).
