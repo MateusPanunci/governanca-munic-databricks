@@ -1,5 +1,6 @@
 {
-  "name": "job_munic_full_refresh",
+  "name": "job_munic_pipeline",
+  "description": "Pipeline MUNIC ponta a ponta para UMA edição por execução: ingest_to_landing → landing_to_bronze → {bronze_quality_profiling ∥ bronze_to_silver} → silver_to_gold. Idempotente (MERGE por ano_edicao / replaceWhere) e regido pelo ledger pipeline_manifest. MULTI-EDIÇÃO: Run now com o parâmetro reference_year (default 2024). Full refresh = uma execução por edição, em sequência.",
   "max_concurrent_runs": 1,
   "queue": { "enabled": true },
   "performance_target": "PERFORMANCE_OPTIMIZED",

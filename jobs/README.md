@@ -4,7 +4,7 @@ Job é um objeto do **workspace** (não do repositório): o Git versiona os note
 job em si. Esta pasta fecha essa lacuna mantendo a definição JSON dos jobs do pipeline para
 que qualquer branch/collega consiga recriar o mesmo desenho de DAG.
 
-## job_munic_full_refresh
+## job_munic_pipeline
 
 Pipeline ponta a ponta de **uma edição da MUNIC** por execução, idempotente (MERGE por
 `ano_edicao` + `replaceWhere`):
@@ -25,6 +25,8 @@ silver_to_gold_task            dim/fact da edição (guard do ledger: exige
                                silver + dq_* da edição no manifest)
 ```
 
+O nome do job descreve o modo de operação: o pipeline inteiro, UMA edição por execução.
+
 ### Parâmetro de edição
 
 * `reference_year` (default `2024`) — parâmetro do job, entregue às tarefas via widget de
@@ -40,9 +42,11 @@ Os caminhos das tarefas são absolutos no workspace. Para recriar em outro clone
 ajuste o prefixo `/Users/mateus.panunci@uel.br/` para o seu usuário e rode:
 
 ```
-databricks jobs create --json @jobs/job_munic_full_refresh.json
+databricks jobs create --json @jobs/job_munic_pipeline.json
 ```
 
+> Espelho manual: este JSON é um export das settings do job. Editar o job pela UI NÃO
+> atualiza o arquivo — ao mudar algo no job, reexporte/atualize o JSON e commite.
 > Caminho robusto de longo prazo: Declarative Automation Bundle (DAB), que resolve
 > caminhos relativos e permite `bundle deploy`. Este JSON é a solução leve enquanto o
 > projeto não adota DAB.
