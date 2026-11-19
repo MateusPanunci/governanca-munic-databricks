@@ -1,0 +1,91 @@
+edicao,item,cod_variable,resposta,pontos
+2024,Formato do orçamento,mgov0711,Sim,1.0
+2024,Formato do orçamento,mgov0712,Sim,0.5
+2024,Formato do orçamento,mgov0713,Sim,0.5
+2024,Formato do orçamento,mgov0715,Sim,0.0
+2024,Formato das receitas,mgov0721,Sim,1.0
+2024,Formato das receitas,mgov0722,Sim,0.5
+2024,Formato das receitas,mgov0723,Sim,0.5
+2024,Formato das receitas,mgov0725,Sim,0.0
+2024,Formato das despesas,mgov0731,Sim,1.0
+2024,Formato das despesas,mgov0732,Sim,0.5
+2024,Formato das despesas,mgov0733,Sim,0.5
+2024,Formato das despesas,mgov0735,Sim,0.0
+2024,Formato dos balanços,mgov0741,Sim,1.0
+2024,Formato dos balanços,mgov0742,Sim,0.5
+2024,Formato dos balanços,mgov0743,Sim,0.5
+2024,Formato dos balanços,mgov0745,Sim,0.0
+2024,Formato da prestação de contas (LRF),mgov0751,Sim,1.0
+2024,Formato da prestação de contas (LRF),mgov0752,Sim,0.5
+2024,Formato da prestação de contas (LRF),mgov0753,Sim,0.5
+2024,Formato da prestação de contas (LRF),mgov0755,Sim,0.0
+2024,Formato de compras e licitações,mgov0761,Sim,1.0
+2024,Formato de compras e licitações,mgov0762,Sim,0.5
+2024,Formato de compras e licitações,mgov0763,Sim,0.5
+2024,Formato de compras e licitações,mgov0765,Sim,0.0
+2024,Página da prefeitura ativa,mtic10,Ativa,1.0
+2024,Página da prefeitura ativa,mtic10,Em manutenção ou reestruturação,0.5
+2024,Página da prefeitura ativa,mtic10,Em elaboração,0.0
+2024,Página da prefeitura ativa,mtic10,Não possui página,0.0
+2024,Canal de solicitação de serviços,mtic172,Sim,1.0
+2024,Canal de solicitação de serviços,mtic174,Sim,1.0
+2024,Canal de solicitação de serviços,mtic171,Sim,0.5
+2024,Canal de solicitação de serviços,mtic173,Sim,0.5
+2024,Canal de solicitação de serviços,mtic175,Sim,0.25
+2024,Canal de solicitação de serviços,mtic176,Sim,0.0
+2024,Acessibilidade digital,mtic29,Modelo federal de acessibilidade digital (e-MAG),1.0
+2024,Acessibilidade digital,mtic29,Modelo global de acessibilidade digital (WCAG/WAI),1.0
+2024,Acessibilidade digital,mtic29,Modelo estadual de acessibilidade digital,1.0
+2024,Acessibilidade digital,mtic29,Modelo próprio de acessibilidade digital,0.5
+2024,Acessibilidade digital,mtic29,Não há qualquer modelo de acessibilidade digital,0.0
+2024,Estrutura de controle interno,mgov09,"Sim, instituída por instrumento legal",1.0
+2024,Estrutura de controle interno,mgov09,"Sim, sem instrumento legal",0.5
+2024,Estrutura de controle interno,mgov09,Não,0.0
+2024,Perguntas e respostas da LAI,mgov05,Perguntas e respostas,1.0
+2024,Perguntas e respostas da LAI,mgov05,Somente as respostas,0.5
+2024,Perguntas e respostas da LAI,mgov05,Não publica,0.0
+2019,Formato do orçamento,mgov0711,Sim,1.0
+2019,Formato do orçamento,mgov0712,Sim,0.5
+2019,Formato do orçamento,mgov0713,Sim,0.5
+2019,Formato do orçamento,mgov0715,Sim,0.0
+2019,Formato das receitas,mgov0721,Sim,1.0
+2019,Formato das receitas,mgov0722,Sim,0.5
+2019,Formato das receitas,mgov0723,Sim,0.5
+2019,Formato das receitas,mgov0725,Sim,0.0
+2019,Formato das despesas,mgov0731,Sim,1.0
+2019,Formato das despesas,mgov0732,Sim,0.5
+2019,Formato das despesas,mgov0733,Sim,0.5
+2019,Formato das despesas,mgov0735,Sim,0.0
+2019,Formato dos balanços,mgov0741,Sim,1.0
+2019,Formato dos balanços,mgov0742,Sim,0.5
+2019,Formato dos balanços,mgov0743,Sim,0.5
+2019,Formato dos balanços,mgov0745,Sim,0.0
+2019,Formato da prestação de contas (LRF),mgov0751,Sim,1.0
+2019,Formato da prestação de contas (LRF),mgov0752,Sim,0.5
+2019,Formato da prestação de contas (LRF),mgov0753,Sim,0.5
+2019,Formato da prestação de contas (LRF),mgov0755,Sim,0.0
+2019,Formato de compras e licitações,mgov0761,Sim,1.0
+2019,Formato de compras e licitações,mgov0762,Sim,0.5
+2019,Formato de compras e licitações,mgov0763,Sim,0.5
+2019,Formato de compras e licitações,mgov0765,Sim,0.0
+2019,Página da prefeitura ativa,mtic10,Ativa,1.0
+2019,Página da prefeitura ativa,mtic10,Em manutenção ou reestruturação,0.5
+2019,Página da prefeitura ativa,mtic10,Em elaboração,0.0
+2019,Página da prefeitura ativa,mtic10,Não possui página,0.0
+2019,Canal de solicitação de serviços,mtic172,Sim,1.0
+2019,Canal de solicitação de serviços,mtic174,Sim,1.0
+2019,Canal de solicitação de serviços,mtic171,Sim,0.5
+2019,Canal de solicitação de serviços,mtic173,Sim,0.5
+2019,Canal de solicitação de serviços,mtic175,Sim,0.25
+2019,Canal de solicitação de serviços,mtic176,Sim,0.0
+2019,Acessibilidade digital,mtic29,Modelo federal de acessibilidade digital (e-MAG),1.0
+2019,Acessibilidade digital,mtic29,Modelo global acessibilidade digital (WCAG/WAI),1.0
+2019,Acessibilidade digital,mtic29,Modelo estadual de acessibilidade digital,1.0
+2019,Acessibilidade digital,mtic29,Modelo próprio de acessibilidade digital,0.5
+2019,Acessibilidade digital,mtic29,Não há qualquer modelo de acessibilidade digital,0.0
+2019,Estrutura de controle interno,mgov09,"Sim, por instrumento legal",1.0
+2019,Estrutura de controle interno,mgov09,"Sim, sem instrumento legal",0.5
+2019,Estrutura de controle interno,mgov09,Não,0.0
+2019,Perguntas e respostas da LAI,mgov05,Perguntas e respostas,1.0
+2019,Perguntas e respostas da LAI,mgov05,Somente as respostas,0.5
+2019,Perguntas e respostas da LAI,mgov05,Não publica,0.0

@@ -1,0 +1,91 @@
+# Radar IMDM — um radar por edição, definido pelo especialista
+
+O radar não está mais escrito no código. Cada edição da MUNIC tem o **seu** radar, completo e independente das outras: as próprias dimensões (quantas forem), os próprios itens e os códigos do IBGE daquele ano. Nenhuma edição faz referência a outra.
+
+| Quem | Decide | Onde |
+|---|---|---|
+| Especialista de negócio | dimensões de cada edição (nome, ordem, peso, entra no IMDM), itens e códigos do IBGE, pontuação das respostas, faixas de maturidade | `radar_imdm.xlsx` |
+| Time técnico | as regras de cálculo (Sim = 1, escalonado, escada, grupo, exceção do `mgov05`) e as validações | `validar_radar.py` + `pipeline/` |
+
+## A planilha
+
+As abas são **fixas**; cada linha tem a coluna `edicao`. Edição nova = linhas novas, nunca aba nova nem código novo.
+
+| Aba | Uma linha por | Colunas |
+|---|---|---|
+| Dimensoes | edição × dimensão | `edicao`, `dimensao`, `ordem` (1, 2, 3… sem buracos), `peso`, `entra_no_imdm`, `descricao` |
+| Itens | edição × item | `edicao`, `dimensao` (nome igual ao da aba Dimensoes, mesma edição), `item`, `descricao`, `variaveis` (códigos do IBGE separados por `;`, o 1º é a âncora), `regra`, `pontuacao`, `excecao` |
+| Niveis | edição × nível | `edicao`, `nivel`, `nome`, `minimo`, `maximo` (0 a 100, sem buracos) |
+| Listas, Historico, LEIA-ME | — | regras aceitas, registro de mudanças e instruções |
+
+**Coluna `pontuacao`:**
+- `SIM_POSITIVO` e `GRUPO_PROPORCIONAL`: vazia.
+- `CATEGORICO_ESCALONADO` com 1 variável: `Ativa=1; Em manutenção ou reestruturação=0,5; Não possui página=0` (resposta exata do IBGE = pontos).
+- Várias variáveis (formato de publicação, escada de canais): `mtic172=1; mtic171=0,5; mtic175=0,25` (pontos quando a variável é "Sim"; vale a maior).
+
+**Edição nova (ex.: 2026):** filtrar `edicao = 2024` nas abas Dimensoes, Itens e Niveis, copiar as linhas, colar no fim, trocar o ano e editar o que mudou.
+
+## Validar e gerar os CSVs
+
+```bash
+python config/radar/validar_radar.py --dados 2024=caminho/Base_MUNIC_2024_20251107.xlsx --dados 2019=caminho/Base_MUNIC_2019_20210817.xlsx
+```
+
+Cada edição é validada isoladamente. Enquanto houver ERRO, nenhum CSV é gerado. A mensagem diz a edição, a aba e a linha do Excel. Exemplos:
+
+```
+[ERRO]  2026: a ordem das dimensões deve ser 1, 2, 3… sem buracos nem repetições (encontrado: 1, 4)
+[ERRO]  2026, Itens linha 122 ('Alvará online'): usa a dimensão 'Servicos digitais', que não existe em 2026 — você quis dizer 'Serviços digitais'?
+[ERRO]  2026: a dimensão 'Governo aberto' entra no IMDM mas não tem nenhum item
+[ERRO]  2026, Itens linha 123 ('Página ativa'): pontuação — pontos não numéricos em 'Não possui página=dois'
+```
+
+O que é conferido em cada edição:
+- **Dimensões:** nomes únicos, ordem 1…n sem buracos, peso maior que 0, `entra_no_imdm` sim/nao, pelo menos uma no IMDM, e toda dimensão do IMDM com pelo menos um item.
+- **Itens:**
+  - nome único e dimensão existente na mesma edição (com sugestão quando o nome está quase certo);
+  - códigos no padrão `mtic…`/`mgov…` e nenhuma variável em dois itens;
+  - regra e exceção da lista, número de variáveis compatível com a regra;
+  - pontuação bem escrita, entre 0 e 1 e cobrindo todas as variáveis do item.
+- **Níveis:** faixas de 0 a 100, sem buracos nem sobreposição.
+- **Com `--dados`:** todo código existe na base daquele ano, e toda resposta dos itens escalonados tem pontuação (um rótulo novo do IBGE não vira 0 silencioso).
+
+O que o script **não** pega é um erro de conteúdo que parece válido, como um código que existe mas é o errado ou um item na dimensão errada. Isso fica para a revisão no PR, apoiada pela aba Historico.
+
+Precisa de `pandas` e `openpyxl`. Os CSVs em `csv/` são **gerados, não edite à mão**; faça commit deles junto com a planilha.
+
+## No Databricks
+
+O notebook `pipeline/load_radar_config` lê os CSVs do próprio Git folder e valida o radar da edição do job (`reference_year`) com as mesmas regras e contra a silver daquele ano. Depois grava as tabelas `munic_catalog.config`:
+
+| Tabela | Uma linha por | Uso |
+|---|---|---|
+| `radar_dimensao` | edição × dimensão | eixos do radar (nome, ordem, peso, entra no IMDM, `dimensao_codigo`) |
+| `radar_item` | edição × item | como na planilha |
+| `radar_variavel` | edição × item × variável | o join do `silver_to_gold`: `cod_variable` → item, dimensão, regra, `e_ancora` |
+| `radar_pontuacao` | edição × item × variável × resposta | pontos por rótulo |
+| `radar_nivel` | edição × nível | faixas do `nivel_maturidade_mmd` |
+
+Toda linha carrega `radar_sha256` (hash da planilha) e `carregado_em`; as versões anteriores ficam no `DESCRIBE HISTORY`. O ledger recebe a linha `radar` × edição.
+
+## Versão inicial
+
+- **2024:** igual ao radar fixo do `silver_to_gold` (branch `feat/multi-edicao`): 5 dimensões, 64 itens (7/11/26/16/4), mesmas âncoras, regras e variáveis (conferido item a item).
+- **2019:** 4 dimensões (o bloco de LGPD não foi coletado), 55 itens.
+  - Serviços online com os códigos de 2019 (`mtic124`–`127`, `mtic1210`–`1218`).
+  - Sem `mtic091`/`092` (2019 só tem o `mtic09`) e sem `mtic18a2`/`a3`.
+  - Sem o item de WhatsApp: em 2019 o `mtic014` pergunta "atendimento pela Internet".
+  - Rótulos de 2019 em `mgov09` e `mtic29`. Os demais rótulos escalonados de 2019 ainda precisam ser conferidos com `--dados 2019=...`.
+
+## Próximo passo (código)
+
+Para o pipeline usar o radar da planilha de fato:
+
+1. Acrescentar a tarefa `load_radar_config` no job (`resources/job_munic_pipeline.yml`), antes do `silver_to_gold_task`.
+2. No `silver_to_gold`:
+   - Step 3: trocar a lista fixa `imdm_items` por `config.radar_variavel` da edição. A função `itens_do_catalogo` do notebook já devolve o mesmo formato.
+   - Step 6: trocar os mapas fixos por `config.radar_pontuacao`.
+3. Na gold, como o número de dimensões passa a variar por edição:
+   - os scores vão para uma tabela longa (município × edição × dimensão);
+   - a `fact_imdm_municipio` fica com o IMDM global (média ponderada pelas dimensões com `entra_no_imdm = sim`);
+   - o `nivel_maturidade_mmd` passa a vir de `config.radar_nivel`.

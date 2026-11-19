@@ -1,0 +1,71 @@
+{
+  "planilha": "radar_imdm.xlsx",
+  "sha256_planilha": "2b4af73e1ffe4625a06b5d69a69eb2208769e6d3d71dc1d619bf4afe3f42a2c9",
+  "gerado_em": "2026-11-16T21:00:16Z",
+  "resumo": {
+    "2019": {
+      "dimensoes": [
+        {
+          "ordem": 1,
+          "dimensao": "Infraestrutura, capacidade de TIC e acesso digital",
+          "entra_no_imdm": "sim",
+          "itens": 5
+        },
+        {
+          "ordem": 2,
+          "dimensao": "Transparência ativa e dados abertos",
+          "entra_no_imdm": "sim",
+          "itens": 11
+        },
+        {
+          "ordem": 3,
+          "dimensao": "Serviços digitais ao cidadão",
+          "entra_no_imdm": "sim",
+          "itens": 23
+        },
+        {
+          "ordem": 4,
+          "dimensao": "Controle interno e participação",
+          "entra_no_imdm": "sim",
+          "itens": 16
+        }
+      ],
+      "itens": 55
+    },
+    "2024": {
+      "dimensoes": [
+        {
+          "ordem": 1,
+          "dimensao": "Infraestrutura, capacidade de TIC e acesso digital",
+          "entra_no_imdm": "sim",
+          "itens": 7
+        },
+        {
+          "ordem": 2,
+          "dimensao": "Transparência ativa e dados abertos",
+          "entra_no_imdm": "sim",
+          "itens": 11
+        },
+        {
+          "ordem": 3,
+          "dimensao": "Serviços digitais ao cidadão",
+          "entra_no_imdm": "sim",
+          "itens": 26
+        },
+        {
+          "ordem": 4,
+          "dimensao": "Controle interno e participação",
+          "entra_no_imdm": "sim",
+          "itens": 16
+        },
+        {
+          "ordem": 5,
+          "dimensao": "Proteção de dados pessoais (LGPD)",
+          "entra_no_imdm": "sim",
+          "itens": 4
+        }
+      ],
+      "itens": 64
+    }
+  }
+}
