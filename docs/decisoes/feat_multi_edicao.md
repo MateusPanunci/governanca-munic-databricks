@@ -302,6 +302,34 @@ Em compute serverless, a conf `spark.databricks.delta.commitInfo.userMetadata` �
 
 ---
 
+## Radar por edição na planilha + gold genérica + camada semantic
+
+> Mudança proposta por Alexandre (branch `feat/radar-catalogo`), resolvendo as pendências "gold 2019 / célula 19 / rótulos 2019" e "camada semantic por edição".
+
+### Mudanças
+
+* **Radar fora do código** — `config/radar/radar_imdm.xlsx` (mantido pelo especialista): abas fixas `Dimensoes`, `Itens`, `Niveis`, cada linha com `edicao`. Cada edição tem o seu radar, independente das outras (nº de dimensões, itens, códigos do IBGE, pesos e faixas de maturidade). `validar_radar.py` valida e gera os CSVs versionados junto da planilha.
+* **`pipeline/load_radar_config`** (nova task, depois da silver): revalida o radar da edição contra a silver e grava `config.radar_dimensao|item|variavel|pontuacao|nivel` + linha `radar` no ledger (sha256 da planilha).
+* **`silver_to_gold`**: Step 3 lê `config.radar_variavel` (sai a lista fixa de 64 itens); Step 6 genérico por regra com os pontos de `config.radar_pontuacao` (saem os mapas e os códigos fixos; o caso do `mgov05` vira a exceção `NAO_SE_APLICA_SEM_PEDIDO_LAI` declarada na planilha); Step 8 grava **`fact_score_dimensao`** (longa: município × dimensão) e a `fact_imdm_municipio` sem as 5 colunas fixas — IMDM = Σ(peso × score) / Σ peso das dimensões do ano com `entra_no_imdm = sim`, nível pelas faixas da edição; Step 9 com 24 controles, incluindo o recálculo independente do IMDM.
+* **`pipeline/gold_to_semantic`** (nova task): 8 views para as telas do dashboard (`vw_painel_municipio`, `vw_score_dimensao`, `vw_radar_dimensao`, `vw_item_municipio`, `agg_adocao_indicador`, `agg_imdm_porte_regiao`, `vw_auditoria_lgpd`, `agg_qualidade_item`), 12 controles de fechamento com a gold e linha `semantic` no ledger.
+
+### Decisões
+
+* **Célula 19 → Opção A, por construção**: o radar de 2019 simplesmente não tem a dimensão de LGPD (4 dimensões); o IMDM de cada edição é a média das dimensões daquele radar. Dentro de uma edição, dimensão do IMDM sem item válido continua deixando o IMDM nulo (`Sem_Item_Valido`).
+* **Rótulos 2019** (`mgov09` "Sim, por instrumento legal", `mtic29` "Modelo global acessibilidade…") ficam na pontuação de 2019 da planilha — não no código.
+* Supersede a decisão "Radar 2024 como definição estrutural única" (seção "Parametrização da gold multi-edição"): o radar por edição vive como **dados validados**, não como flags no código.
+
+### Evidência (ambiente local Spark com a base MUNIC 2024 — falta rodar no Databricks)
+
+* Gold antiga × gold nova (mesma silver 2024, radar 2024 da planilha): **0 divergências** em `resposta_normalizada`, `classe_preenchimento`, `pontos_obtidos` e `peso_aplicado` nas 2.005.200 linhas da `fact_resposta`; 0 divergências no IMDM, motivo de nulo, nível e nos 5 scores dos 5.570 municípios. QC da gold 24/24; QC da semantic 12/12.
+* Radar alternativo (7 dimensões, LGPD com peso 2, uma dimensão fora do IMDM): gold 24/24 e semantic 12/12 sem alteração de código.
+
+### Operação
+
+* **Uma vez, antes do primeiro run**: `DROP TABLE munic_catalog.gold.fact_imdm_municipio` (o esquema mudou; o upsert recria) e `bundle deploy` (job com as 2 tasks novas).
+
+---
+
 ## Pendências da branch
 
 * ~~Silver 2019~~ **RESOLVIDO no re-run do zero** (seção “Re-run do zero”): o fail-fast 7/7 passou contra o contrato da bronze 2019 (307 indicadores / 610 recusas).

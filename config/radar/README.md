@@ -77,15 +77,10 @@ Toda linha carrega `radar_sha256` (hash da planilha) e `carregado_em`; as versõ
   - Sem o item de WhatsApp: em 2019 o `mtic014` pergunta "atendimento pela Internet".
   - Rótulos de 2019 em `mgov09` e `mtic29`. Os demais rótulos escalonados de 2019 ainda precisam ser conferidos com `--dados 2019=...`.
 
-## Próximo passo (código)
+## Como o pipeline usa o radar
 
-Para o pipeline usar o radar da planilha de fato:
+Job: `… bronze_to_silver → load_radar_config → silver_to_gold → gold_to_semantic`.
 
-1. Acrescentar a tarefa `load_radar_config` no job (`resources/job_munic_pipeline.yml`), antes do `silver_to_gold_task`.
-2. No `silver_to_gold`:
-   - Step 3: trocar a lista fixa `imdm_items` por `config.radar_variavel` da edição. A função `itens_do_catalogo` do notebook já devolve o mesmo formato.
-   - Step 6: trocar os mapas fixos por `config.radar_pontuacao`.
-3. Na gold, como o número de dimensões passa a variar por edição:
-   - os scores vão para uma tabela longa (município × edição × dimensão);
-   - a `fact_imdm_municipio` fica com o IMDM global (média ponderada pelas dimensões com `entra_no_imdm = sim`);
-   - o `nivel_maturidade_mmd` passa a vir de `config.radar_nivel`.
+- `silver_to_gold` (Step 3) lê os itens da edição em `config.radar_variavel`; o Step 6 calcula os itens por regra com os pontos de `config.radar_pontuacao` (nenhum código de variável fixo no notebook).
+- A gold grava `fact_score_dimensao` (município × dimensão da edição) e a `fact_imdm_municipio` com o IMDM = média ponderada pelos pesos da aba Dimensoes, só das dimensões com `entra_no_imdm = sim`; o nível vem da aba Niveis.
+- `gold_to_semantic` publica as views do dashboard, todas com `ano_edicao` e sem número fixo de dimensões.
