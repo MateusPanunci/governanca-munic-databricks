@@ -1,0 +1,15 @@
+# App do dashboard IMDM (Streamlit no Databricks Apps), publicado pelo mesmo bundle deploy.
+# Depois do deploy: Compute → Apps → imdm-dashboard → Start, e conceder ao service principal
+# do app leitura na semantic (ver apps/imdm_dashboard/README.md).
+resources:
+  apps:
+    imdm_dashboard:
+      name: imdm-dashboard
+      description: "Dashboard do IMDM (MUNIC/IBGE): visão geral, perfil do município, dimensões e qualidade dos dados"
+      source_code_path: ../apps/imdm_dashboard
+      resources:
+        - name: sql-warehouse
+          description: "SQL warehouse usado para ler as views munic_catalog.semantic.*"
+          sql_warehouse:
+            id: ${var.warehouse_id}
+            permission: CAN_USE

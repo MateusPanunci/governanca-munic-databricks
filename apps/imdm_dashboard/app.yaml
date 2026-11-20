@@ -1,0 +1,11 @@
+# Databricks Apps — dashboard do IMDM (lê só a camada semantic)
+command: ["streamlit", "run", "app.py"]
+env:
+  - name: DATABRICKS_WAREHOUSE_ID
+    valueFrom: sql-warehouse        # recurso ligado ao app (resources/app_imdm_dashboard.yml)
+  - name: IMDM_CATALOG
+    value: munic_catalog
+  - name: IMDM_SCHEMA
+    value: semantic
+  - name: STREAMLIT_BROWSER_GATHER_USAGE_STATS
+    value: "false"

@@ -12,6 +12,10 @@ variables:
   reference_year:
     description: Edição MUNIC processada em cada execução do pipeline
     default: "2024"
+  warehouse_id:
+    description: SQL warehouse que o app do dashboard usa para ler a semantic (procurado pelo nome)
+    lookup:
+      warehouse: "Serverless Starter Warehouse"
 
 # Target único (default) por enquanto. Quando houver ambiente de produção,
 # adicione targets abaixo (ex.: prod com mode: production e run_as próprio).
