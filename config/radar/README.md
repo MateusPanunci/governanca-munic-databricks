@@ -54,6 +54,17 @@ O que o script **não** pega é um erro de conteúdo que parece válido, como um
 
 Precisa de `pandas` e `openpyxl`. Os CSVs em `csv/` são **gerados, não edite à mão**; faça commit deles junto com a planilha.
 
+## Mudou o radar? O passo a passo
+
+1. **Editar** `radar_imdm.xlsx` (só as linhas da edição que mudou) e registrar a mudança na aba Historico.
+2. **Validar e gerar os CSVs** com o comando acima. Corrija até não sobrar nenhum ERRO.
+3. **Commit** da planilha **e** da pasta `csv/` (os dois juntos) e push.
+4. **No Databricks:** Pull na pasta Git → **Deploy** no painel do foguete (o job lê a cópia publicada, não a pasta Git).
+5. **Rodar o job** `job_munic_pipeline` com `reference_year` = cada edição que mudou (um Run now por edição, nunca em paralelo). As outras edições não precisam rodar.
+6. **No app:** botão **Recarregar dados** na barra lateral (ou esperar o cache de 12 h).
+
+O que acontece por baixo: o `load_radar_config` regrava as tabelas `config.radar_*`; o `silver_to_gold` recalcula itens, dimensões e IMDM da edição (dimensões que saíram ou mudaram de nome são removidas da gold daquela edição); o `gold_to_semantic` refaz as tabelas do dashboard. O app não precisa de deploy: ele lê o número de dimensões, os nomes e os itens das tabelas.
+
 ## No Databricks
 
 O notebook `pipeline/load_radar_config` lê os CSVs do próprio Git folder e valida o radar da edição do job (`reference_year`) com as mesmas regras e contra a silver daquele ano. Depois grava as tabelas `munic_catalog.config`:
