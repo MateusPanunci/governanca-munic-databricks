@@ -58,11 +58,14 @@ st.markdown(f"""
 .kpi .d{{font-size:.8rem;opacity:.8}}
 .kpi .up{{color:{T.sobe};font-weight:600}}.kpi .down{{color:{T.desce};font-weight:600}}
 .cab{{display:flex;align-items:center;gap:22px;padding:4px 0 14px;margin-bottom:6px;border-bottom:1px solid rgba(128,128,128,0.25)}}
-.cab img{{height:72px;width:auto}}
+.cab-logo{{position:relative;flex:none}}
+.cab-logo img{{height:72px;width:auto;display:block}}
+.cab-logo-txt{{position:absolute;inset:0;background-color:currentColor;
+  -webkit-mask-size:100% 100%;mask-size:100% 100%;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat}}
 .cab-tit{{font-size:1.45rem;font-weight:700;line-height:1.2}}
 .cab-org{{font-size:.92rem;opacity:.85;margin-top:2px}}
 .cab-aviso{{font-size:.76rem;opacity:.6;margin-top:3px}}
-@media (max-width:700px){{.cab{{flex-direction:column;align-items:flex-start;gap:8px}}.cab img{{height:56px}}}}
+@media (max-width:700px){{.cab{{flex-direction:column;align-items:flex-start;gap:8px}}.cab-logo img{{height:56px}}}}
 </style>
 """, unsafe_allow_html=True)
 
@@ -267,13 +270,22 @@ def _logo_base64(nome):
 
 
 def cabecalho():
-    """Logo + título + secretaria. O logo segue o tema ativo (claro: texto preto; escuro: texto branco).
-    Trocar o tema no menu ⋮ não reexecuta o app: o logo se ajusta na próxima interação."""
-    escuro = getattr(getattr(st.context, "theme", None), "type", None) == "dark"
-    logo = _logo_base64("logo_gov_tema_escuro.png" if escuro else "logo_gov_tema_claro.png")
+    """Logo + título + secretaria.
+
+    O logo é montado em duas camadas: a palavra BRASIL colorida (igual nos dois temas) e os textos
+    "GOVERNO DO" / "DO LADO DO POVO BRASILEIRO" como máscara pintada com a cor do texto do tema
+    (escura no claro, clara no escuro). Assim o logo acompanha o tema na hora, inclusive quando ele é
+    trocado no menu ⋮ (o que não reexecuta o app). Fonte: as versões oficiais para fundo claro e escuro."""
+    marca, textos = _logo_base64("logo_gov_marca.png"), _logo_base64("logo_gov_textos.png")
     st.markdown(f"""
+<style>
+.cab-logo-txt{{-webkit-mask-image:url(data:image/png;base64,{textos});mask-image:url(data:image/png;base64,{textos})}}
+</style>
 <div class="cab">
-  <img src="data:image/png;base64,{logo}" alt="Governo do Brasil"/>
+  <div class="cab-logo" role="img" aria-label="Governo do Brasil">
+    <img src="data:image/png;base64,{marca}" alt=""/>
+    <div class="cab-logo-txt"></div>
+  </div>
   <div class="cab-txt">
     <div class="cab-tit">Painel de Maturidade Digital Municipal</div>
     <div class="cab-org">Secretaria de Governo Digital · Ministério da Gestão e da Inovação em Serviços Públicos</div>

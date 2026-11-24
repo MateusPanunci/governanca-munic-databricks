@@ -11,7 +11,7 @@ Lê **somente** a camada `munic_catalog.semantic` (gerada pelo `pipeline/gold_to
 
 Filtros na barra lateral: edição, macrorregião, UF e porte valem para todas as telas. O **município** só vale na Visão geral e no Perfil; em Dimensões e Qualidade ele fica desativado ("Não se aplica nesta tela"), porque essas telas mostram médias, distribuições e contagens de uma área. A escolha fica guardada e volta ao retornar às outras telas.
 
-**Cabeçalho:** logo do Governo do Brasil (versão do tema claro ou escuro, em `assets/`), título "Painel de Maturidade Digital Municipal", Secretaria de Governo Digital / MGI e o aviso de que é um projeto acadêmico (UEL), não uma publicação oficial. Trocar o tema no menu ⋮ não reexecuta o app; o logo se ajusta na próxima interação.
+**Cabeçalho:** logo do Governo do Brasil (em `assets/`: a palavra colorida e os textos, que tomam a cor do texto do tema), título "Painel de Maturidade Digital Municipal", Secretaria de Governo Digital / MGI e o aviso de que é um projeto acadêmico (UEL), não uma publicação oficial. O logo acompanha o tema na hora, inclusive ao trocar pelo menu ⋮.
 
 **Tema claro ou escuro:** menu ⋮ no canto superior direito (Light, Dark ou System).
 
@@ -52,6 +52,6 @@ IMDM_LOCAL_DIR=<pasta com os parquet> python tests/test_app.py --rapido   # amos
 - `app.py` — as 4 telas; `dados.py` — leitura da semantic (Databricks SQL ou parquet local), com cache, leitura paralela e reconexão.
 - `tests/test_app.py` — teste de todas as telas × filtros.
 - `.streamlit/config.toml` — temas claro e escuro.
-- `assets/` — logo do Governo do Brasil para tema claro e escuro.
+- `assets/` — logo do Governo do Brasil em duas camadas (marca colorida + máscara dos textos).
 - `app.yaml` — comando e variáveis do Databricks Apps; `requirements.txt` — dependências.
 - `data/coordenadas_municipios.csv` — sede dos municípios para os mapas (fonte: repositório público kelvins/municipios-brasileiros).
