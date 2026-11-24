@@ -4,6 +4,7 @@ Lê só a camada semantic (contrato de consumo). Nenhuma regra de pontuação aq
 dimensões, itens e pesos vêm do radar de cada edição, definido pelo especialista.
 
 Tema claro/escuro: menu ⋮ (canto superior direito) → Light / Dark. As cores dos gráficos funcionam nos dois.
+Município: filtro ativo só na Visão geral e no Perfil (Dimensões e Qualidade são telas de área).
 Testes: tests/test_app.py abre todas as telas com todas as combinações de filtros.
 """
 from __future__ import annotations
@@ -49,13 +50,19 @@ STATUS_ICONE = {"Sim": "✅ Sim", "Parcial": "🟡 Parcial", "Não": "❌ Não",
 
 st.markdown(f"""
 <style>
-.block-container{{padding-top:1.6rem}}
+.block-container{{padding-top:3.2rem}}
 .kpi{{background:rgba(128,128,128,0.09);border-radius:10px;padding:10px 14px;height:100%}}
 .kpi .k{{font-size:.82rem;opacity:.75}}
 .kpi .v{{font-size:1.55rem;font-weight:700;line-height:1.25;margin:2px 0}}
 .kpi .v.sm{{font-size:1.05rem;line-height:1.35}}
 .kpi .d{{font-size:.8rem;opacity:.8}}
 .kpi .up{{color:{T.sobe};font-weight:600}}.kpi .down{{color:{T.desce};font-weight:600}}
+.cab{{display:flex;align-items:center;gap:22px;padding:4px 0 14px;margin-bottom:6px;border-bottom:1px solid rgba(128,128,128,0.25)}}
+.cab img{{height:72px;width:auto}}
+.cab-tit{{font-size:1.45rem;font-weight:700;line-height:1.2}}
+.cab-org{{font-size:.92rem;opacity:.85;margin-top:2px}}
+.cab-aviso{{font-size:.76rem;opacity:.6;margin-top:3px}}
+@media (max-width:700px){{.cab{{flex-direction:column;align-items:flex-start;gap:8px}}.cab img{{height:56px}}}}
 </style>
 """, unsafe_allow_html=True)
 
@@ -169,8 +176,41 @@ for _k, _v in ss.pop("_pendente", {}).items():
 
 def garantir(chave, opcoes, padrao):
     """Mantém o valor do filtro só se ainda for uma opção válida (ex.: depois de trocar a edição)."""
-    if ss.get(chave) not in opcoes:
+    if chave not in ss or ss[chave] not in opcoes:
         ss[chave] = padrao
+
+
+# ------------------------------------------------------------------ páginas e navegação
+# As funções das páginas estão mais abaixo; os invólucros só as chamam na hora de rodar.
+PAGINAS_SEM_MUNICIPIO = {"dimensoes", "qualidade"}   # telas de área: o filtro de município fica desativado
+
+
+def _p_visao():
+    pagina_visao_geral()
+
+
+def _p_perfil():
+    pagina_perfil()
+
+
+def _p_dimensoes():
+    pagina_dimensoes()
+
+
+def _p_qualidade():
+    pagina_qualidade()
+
+
+PAG_VISAO = st.Page(_p_visao, title="Visão geral", icon="🗺️", url_path="visao", default=True)
+PAG_PERFIL = st.Page(_p_perfil, title="Perfil do município", icon="🏛️", url_path="perfil")
+PAG_DIM = st.Page(_p_dimensoes, title="Dimensões", icon="🧭", url_path="dimensoes")
+PAG_QUAL = st.Page(_p_qualidade, title="Qualidade dos dados", icon="🔎", url_path="qualidade")
+
+# IMDM_PAGINA: usado só pelos testes automáticos (tests/test_app.py) para abrir uma tela direto
+_PAGINA_TESTE = os.getenv("IMDM_PAGINA")
+NAV = None if _PAGINA_TESTE else st.navigation([PAG_VISAO, PAG_PERFIL, PAG_DIM, PAG_QUAL])
+PAGINA = _PAGINA_TESTE or (NAV.url_path or "visao")
+MUNICIPIO_ATIVO = PAGINA not in PAGINAS_SEM_MUNICIPIO
 
 
 with st.sidebar:
@@ -196,8 +236,16 @@ with st.sidebar:
     rotulos = {r.cod_ibge: f"{r.nome} ({r.uf_sigla})" for r in _m.sort_values("nome").itertuples()}
     lista = [None] + list(rotulos)
     garantir("f_mun", lista, None)
-    st.selectbox("Município", lista, key="f_mun", format_func=lambda c: "Todos" if c is None else rotulos.get(c, c),
-                 help="Digite para buscar. Ao escolher um município, os indicadores passam a ser do município.")
+    if MUNICIPIO_ATIVO:
+        # f_mun guarda a escolha; w_mun é só o widget (assim a escolha sobrevive às telas sem município)
+        ss.w_mun = ss.f_mun
+        st.selectbox("Município", lista, key="w_mun", format_func=lambda c: "Todos" if c is None else rotulos.get(c, c),
+                     on_change=lambda: ss.__setitem__("f_mun", ss.w_mun),
+                     help="Digite para buscar. Ao escolher um município, os indicadores passam a ser do município.")
+    else:
+        st.selectbox("Município", ["Não se aplica nesta tela"], key="w_mun_off", disabled=True,
+                     help="Esta tela mostra a área filtrada (região, UF e porte). "
+                          "O município escolhido continua valendo na Visão geral e no Perfil.")
     st.button("Limpar filtros", width="stretch", on_click=limpar_filtros)
     st.divider()
     sha = _pan["radar_sha256"].dropna()
@@ -207,7 +255,34 @@ with st.sidebar:
               help="Use depois de rodar o pipeline. Sem isso, o app guarda os dados por 12 horas.")
     st.caption("Tema claro ou escuro: menu ⋮ no canto superior direito")
 
-FIL = SimpleNamespace(ano=int(ss.f_ano), regiao=ss.f_regiao, uf=ss.f_uf, porte=ss.f_porte, mun=ss.f_mun)
+FIL = SimpleNamespace(ano=int(ss.f_ano), regiao=ss.f_regiao, uf=ss.f_uf, porte=ss.f_porte,
+                      mun=ss.f_mun if MUNICIPIO_ATIVO else None)
+
+
+# ------------------------------------------------------------------ cabeçalho (todas as telas)
+@st.cache_data(show_spinner=False)
+def _logo_base64(nome):
+    import base64
+    return base64.b64encode((dados.AQUI / "assets" / nome).read_bytes()).decode()
+
+
+def cabecalho():
+    """Logo + título + secretaria. O logo segue o tema ativo (claro: texto preto; escuro: texto branco).
+    Trocar o tema no menu ⋮ não reexecuta o app: o logo se ajusta na próxima interação."""
+    escuro = getattr(getattr(st.context, "theme", None), "type", None) == "dark"
+    logo = _logo_base64("logo_gov_tema_escuro.png" if escuro else "logo_gov_tema_claro.png")
+    st.markdown(f"""
+<div class="cab">
+  <img src="data:image/png;base64,{logo}" alt="Governo do Brasil"/>
+  <div class="cab-txt">
+    <div class="cab-tit">Painel de Maturidade Digital Municipal</div>
+    <div class="cab-org">Secretaria de Governo Digital · Ministério da Gestão e da Inovação em Serviços Públicos</div>
+    <div class="cab-aviso">Projeto acadêmico · UEL — não é publicação oficial do Governo Federal · dados: IBGE, Pesquisa MUNIC</div>
+  </div>
+</div>""", unsafe_allow_html=True)
+
+
+cabecalho()
 
 
 # ------------------------------------------------------------------ recorte atual
@@ -234,6 +309,12 @@ def area(df):
 def rotulo_selecao():
     if MUN is not None:
         return f"{MUN['nome']} ({MUN['uf_sigla']})"
+    s = FIL.uf if FIL.uf != "Todas" else FIL.regiao if FIL.regiao != "Todas" else "Brasil"
+    return s + (f" · {FIL.porte}" if FIL.porte != "Todos" else "")
+
+
+def rotulo_area():
+    """Rótulo da área filtrada, sem o município (telas Dimensões e Qualidade)."""
     s = FIL.uf if FIL.uf != "Todas" else FIL.regiao if FIL.regiao != "Todas" else "Brasil"
     return s + (f" · {FIL.porte}" if FIL.porte != "Todos" else "")
 
@@ -668,8 +749,7 @@ def pagina_perfil():
 
 def pagina_dimensoes():
     st.title("Dimensões")
-    st.caption(f"MUNIC {ANO} · {rotulo_selecao() if MUN is None else (FIL.uf if FIL.uf != 'Todas' else 'Brasil')} "
-               "· nesta tela vale a área filtrada (o município selecionado não restringe)")
+    st.caption(f"MUNIC {ANO} · {rotulo_area()}")
     if dims.empty:
         st.warning(f"O radar de {ANO} não tem dimensões carregadas.")
         return
@@ -732,7 +812,7 @@ def pagina_dimensoes():
 
 def pagina_qualidade():
     st.title("Qualidade dos dados")
-    st.caption(f"MUNIC {ANO} · {rotulo_selecao() if MUN is None else (FIL.uf if FIL.uf != 'Todas' else 'Brasil')} · respostas das variáveis do radar")
+    st.caption(f"MUNIC {ANO} · {rotulo_area()} · respostas das variáveis do radar")
     sel = area(pan)
     if sel.empty:
         aviso_sem_municipios()
@@ -802,14 +882,7 @@ def pagina_qualidade():
         st.caption("Definido pelo especialista em config/radar/radar_imdm.xlsx; validado e versionado no pipeline.")
 
 
-PAG_VISAO = st.Page(pagina_visao_geral, title="Visão geral", icon="🗺️", default=True)
-PAG_PERFIL = st.Page(pagina_perfil, title="Perfil do município", icon="🏛️", url_path="perfil")
-PAG_DIM = st.Page(pagina_dimensoes, title="Dimensões", icon="🧭", url_path="dimensoes")
-PAG_QUAL = st.Page(pagina_qualidade, title="Qualidade dos dados", icon="🔎", url_path="qualidade")
-
-# IMDM_PAGINA: usado só pelos testes automáticos (tests/test_app.py) para abrir uma tela direto
-_pagina_teste = os.getenv("IMDM_PAGINA")
-if _pagina_teste:
-    {"visao": pagina_visao_geral, "perfil": pagina_perfil, "dimensoes": pagina_dimensoes, "qualidade": pagina_qualidade}[_pagina_teste]()
+if _PAGINA_TESTE:
+    {"visao": pagina_visao_geral, "perfil": pagina_perfil, "dimensoes": pagina_dimensoes, "qualidade": pagina_qualidade}[_PAGINA_TESTE]()
 else:
-    st.navigation([PAG_VISAO, PAG_PERFIL, PAG_DIM, PAG_QUAL]).run()
+    NAV.run()

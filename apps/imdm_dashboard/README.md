@@ -9,7 +9,9 @@ Lê **somente** a camada `munic_catalog.semantic` (gerada pelo `pipeline/gold_to
 | Dimensões | Seletor de dimensão do ano, adoção de cada item × Brasil, score por UF/município, distribuição e porte | `agg_adocao_uf_porte`, `vw_score_dimensao` |
 | Qualidade dos dados | IMDM nulo por motivo, "Não sabe" por variável e por UF, saltos lógicos, regras de tratamento e o radar de cada edição | `agg_qualidade_item`, `vw_painel_municipio`, `vw_radar_dimensao` |
 
-Filtros na barra lateral (valem para todas as telas): edição, macrorregião, UF, porte e município.
+Filtros na barra lateral: edição, macrorregião, UF e porte valem para todas as telas. O **município** só vale na Visão geral e no Perfil; em Dimensões e Qualidade ele fica desativado ("Não se aplica nesta tela"), porque essas telas mostram médias, distribuições e contagens de uma área. A escolha fica guardada e volta ao retornar às outras telas.
+
+**Cabeçalho:** logo do Governo do Brasil (versão do tema claro ou escuro, em `assets/`), título "Painel de Maturidade Digital Municipal", Secretaria de Governo Digital / MGI e o aviso de que é um projeto acadêmico (UEL), não uma publicação oficial. Trocar o tema no menu ⋮ não reexecuta o app; o logo se ajusta na próxima interação.
 
 **Tema claro ou escuro:** menu ⋮ no canto superior direito (Light, Dark ou System).
 
@@ -50,5 +52,6 @@ IMDM_LOCAL_DIR=<pasta com os parquet> python tests/test_app.py --rapido   # amos
 - `app.py` — as 4 telas; `dados.py` — leitura da semantic (Databricks SQL ou parquet local), com cache, leitura paralela e reconexão.
 - `tests/test_app.py` — teste de todas as telas × filtros.
 - `.streamlit/config.toml` — temas claro e escuro.
+- `assets/` — logo do Governo do Brasil para tema claro e escuro.
 - `app.yaml` — comando e variáveis do Databricks Apps; `requirements.txt` — dependências.
 - `data/coordenadas_municipios.csv` — sede dos municípios para os mapas (fonte: repositório público kelvins/municipios-brasileiros).
