@@ -330,6 +330,40 @@ Em compute serverless, a conf `spark.databricks.delta.commitInfo.userMetadata` �
 
 ---
 
+## Revisão 1 do dashboard: semantic em tabelas, rótulos de não-resposta e app mais robusto
+
+> Revisão pedida por Alexandre depois do primeiro deploy do app (tema escuro, lentidão, "Não sabe" zerado em 2019 e um erro na tela Dimensões).
+
+### Mudanças
+
+* **`gold_to_semantic`: as 8 views viram tabelas Delta** (mesmos nomes, mesmas colunas) e entra a **`agg_adocao_uf_porte`** (item × UF × porte × edição, com Σ pontos e Σ peso). Antes, cada acesso ao app refazia no warehouse os joins com a `fact_resposta`, os rankings e as agregações; agora o pipeline calcula uma vez e o app só lê. Uma view antiga de mesmo nome é removida antes da gravação. Controles: 12 → 15 (a tabela nova fecha Σ pontos, Σ peso e Σ municípios com a gold).
+* **`silver_to_gold` (Step 5): rótulos de não-resposta comparados sem acento e sem caixa**, aceitando variações de redação entre edições (`Não sabe informar`, `Não sabe`, `Não soube informar`). `resposta_normalizada` passa a derivar da classe. Um AVISO lista respostas que ficaram como `Valida` mas começam como rótulo de não-resposta.
+* **App** (`apps/imdm_dashboard`):
+  * Correção do erro da tela Dimensões: com uma UF escolhida, o ranking por município fazia um `merge` que duplicava a coluna `nome` (`KeyError: 'nome'`) — quebrava em qualquer UF.
+  * Filtros com chave própria (`f_*`) e cliques aplicados no início da execução seguinte; o clique no ranking não se repete em loop; seletor de dimensão sempre com uma opção marcada; filtros sem município (ex.: DF + porte pequeno) mostram aviso em vez de gráficos quebrados; divisões por zero e valores nulos tratados.
+  * Leitura das tabelas da abertura em paralelo, cache de 12 h com botão "Recarregar dados", reconexão automática se a sessão do warehouse expirar, tempo de cada leitura nos Logs do app (`[dados]`). Se a `agg_adocao_uf_porte` ainda não existir, o app agrega a `vw_item_municipio` como antes.
+  * Tema claro e escuro (menu ⋮); cores dos gráficos legíveis nos dois.
+  * `use_container_width` (descontinuado) trocado por `width`; versões das dependências fixadas na testada (Streamlit 1.67.0).
+  * "Não sabe" zerado numa edição vira mensagem, e não um gráfico de barras vazias.
+  * `tests/test_app.py`: abre as 4 telas com todas as combinações de edição × região × UF × porte, municípios-limite e cada dimensão.
+
+### Evidência (ambiente local)
+
+* Gold antes × depois da mudança de classificação (silver 2024): **0 divergências** nas 2.005.200 linhas da `fact_resposta`, nos 5.570 IMDM e nos 27.850 scores de dimensão.
+* Semantic em tabelas × views anteriores: conteúdo idêntico nas 8 (diferença só de arredondamento em `soma_imdm`, ~1e-10); QC 15/15.
+* App: app antigo com UF escolhida na tela Dimensões → 360 de 360 combinações com erro; app novo → 0 erros em 3.285 combinações (2024 real + 2019 sintética com 4 dimensões e sem "Não sabe").
+
+### Leitura do "Não sabe" em 2019
+
+A consulta na `fact_resposta` 2019 não mostrou nenhum rótulo de "não sabe" entre as respostas mais frequentes. Com a classificação tolerante, se a edição tiver outra redação, ela passa a ser contada; se continuar 0%, é porque a MUNIC 2019 não tem essa opção nas variáveis do radar.
+
+### Operação
+
+* Pull + rodar o job (ou só a task `gold_to_semantic`) uma vez: as views são trocadas por tabelas automaticamente. Para a classificação nova valer em 2019, rodar o job com `reference_year = 2019`.
+* Deploy do bundle e Deploy do app (o app novo pede a tabela `agg_adocao_uf_porte`, mas funciona sem ela).
+
+---
+
 ## Pendências da branch
 
 * ~~Silver 2019~~ **RESOLVIDO no re-run do zero** (seção “Re-run do zero”): o fail-fast 7/7 passou contra o contrato da bronze 2019 (307 indicadores / 610 recusas).

@@ -72,7 +72,7 @@ resources:
             base_parameters:
               reference_year: "{{job.parameters.reference_year}}"
 
-        # Camada de consumo do dashboard (views sobre gold + radar).
+        # Camada de consumo do dashboard (tabelas prontas sobre gold + radar).
         - task_key: gold_to_semantic_task
           depends_on:
             - task_key: silver_to_gold_task

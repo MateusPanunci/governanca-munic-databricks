@@ -1,6 +1,11 @@
-[theme]
+# Tema: claro e escuro com o mesmo azul. Cada pessoa escolhe no menu ⋮ (Light / Dark / System)
+# (o padrão segue o sistema operacional). Sem "base": fixar a base esconderia a escolha.
+[theme.light]
 primaryColor = "#2a78d6"
-base = "light"
+
+[theme.dark]
+primaryColor = "#4a90e2"
 
 [browser]
 gatherUsageStats = false
+
