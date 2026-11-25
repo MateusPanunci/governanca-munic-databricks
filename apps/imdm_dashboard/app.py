@@ -147,16 +147,27 @@ except Exception as e:   # noqa: BLE001
         st.code(f"{type(e).__name__}: {e}")
     st.stop()
 
-painel_all = _b["vw_painel_municipio"]
-score_all = _b["vw_score_dimensao"]
-radar_all = _b["vw_radar_dimensao"]
+# Tabelas por radar (coluna `radar`); a de LGPD não depende de radar
+_painel_todos = _b["vw_painel_municipio"]
+_score_todos = _b["vw_score_dimensao"]
+_radar_todos = _b["vw_radar_dimensao"]
+_qual_todos = _b["agg_qualidade_item"]
 lgpd_all = _b["vw_auditoria_lgpd"]
-qual_all = _b["agg_qualidade_item"]
-
-EDICOES = sorted((int(a) for a in painel_all["ano_edicao"].dropna().unique()), reverse=True)
-if not EDICOES:
+RADARES = _b["vw_radares"].copy()
+RADARES = RADARES[RADARES["radar"].isin(set(_painel_todos["radar"]))]
+if RADARES.empty or _painel_todos.empty:
     st.warning("A camada semantic está vazia: rode o pipeline para ao menos uma edição.")
     st.stop()
+RADARES["padrao"] = RADARES["padrao"].astype("boolean").fillna(False).astype(bool)
+RADARES = RADARES.sort_values(["padrao", "radar"], ascending=[False, True]).reset_index(drop=True)
+RADAR_PADRAO = RADARES["radar"].iloc[0]
+RADAR_INFO = {r.radar: r for r in RADARES.itertuples()}
+
+
+def rotulo_radar(cod):
+    r = RADAR_INFO.get(cod)
+    nome = texto(getattr(r, "nome", None), "") if r is not None else ""
+    return f"{cod} · {nome}" if nome else str(cod)
 
 
 # ------------------------------------------------------------------ filtros (barra lateral, valem para todas as telas)
@@ -219,6 +230,19 @@ MUNICIPIO_ATIVO = PAGINA not in PAGINAS_SEM_MUNICIPIO
 with st.sidebar:
     st.markdown("### 📡 IMDM")
     st.caption("Índice de Maturidade Digital Municipal · IBGE MUNIC")
+    lista_radares = RADARES["radar"].tolist()
+    garantir("f_radar", lista_radares, RADAR_PADRAO)
+    st.selectbox("Radar", lista_radares, key="f_radar", format_func=rotulo_radar,
+                 help="Metodologia do IMDM definida pelo especialista. Cada radar cobre todas as edições; "
+                      "as respostas do IBGE são as mesmas, muda só a forma de pontuar.")
+    _desc = texto(getattr(RADAR_INFO[ss.f_radar], "descricao", None), "")
+    if _desc:
+        st.caption(_desc)
+    painel_all = _painel_todos[_painel_todos["radar"] == ss.f_radar]
+    score_all = _score_todos[_score_todos["radar"] == ss.f_radar]
+    radar_all = _radar_todos[_radar_todos["radar"] == ss.f_radar]
+    qual_all = _qual_todos[_qual_todos["radar"] == ss.f_radar]
+    EDICOES = sorted((int(a) for a in painel_all["ano_edicao"].dropna().unique()), reverse=True)
     garantir("f_ano", EDICOES, EDICOES[0])
     st.selectbox("Edição", EDICOES, key="f_ano")
     _pan = painel_all[painel_all["ano_edicao"] == ss.f_ano]
@@ -252,13 +276,14 @@ with st.sidebar:
     st.button("Limpar filtros", width="stretch", on_click=limpar_filtros)
     st.divider()
     sha = _pan["radar_sha256"].dropna()
-    st.caption(f"Radar {ss.f_ano}: {radar_all.loc[radar_all['ano_edicao'] == ss.f_ano, 'dimensao_codigo'].nunique()} "
-               f"dimensões · versão `{(sha.iloc[0] if len(sha) else '')[:10]}`")
+    st.caption(f"Radar {ss.f_radar} em {ss.f_ano}: "
+               f"{radar_all.loc[radar_all['ano_edicao'] == ss.f_ano, 'dimensao_codigo'].nunique()} dimensões · "
+               f"planilha `{(sha.iloc[0] if len(sha) else '')[:10]}`")
     st.button("Recarregar dados", width="stretch", on_click=dados.recarregar,
               help="Use depois de rodar o pipeline. Sem isso, o app guarda os dados por 12 horas.")
     st.caption("Tema claro ou escuro: menu ⋮ no canto superior direito")
 
-FIL = SimpleNamespace(ano=int(ss.f_ano), regiao=ss.f_regiao, uf=ss.f_uf, porte=ss.f_porte,
+FIL = SimpleNamespace(radar=ss.f_radar, ano=int(ss.f_ano), regiao=ss.f_regiao, uf=ss.f_uf, porte=ss.f_porte,
                       mun=ss.f_mun if MUNICIPIO_ATIVO else None)
 
 
@@ -703,8 +728,8 @@ def pagina_perfil():
 
     uf_df = pan[pan["uf_sigla"] == m["uf_sigla"]]
     mun_dims = score[score["cod_ibge"] == m["cod_ibge"]].set_index("dimensao_codigo")["score"].to_dict()
-    itens = dados.itens_do_municipio(m["cod_ibge"], ANO)
-    ado = dados.adocao_uf_porte(ANO)
+    itens = dados.itens_do_municipio(m["cod_ibge"], ANO, FIL.radar)
+    ado = dados.adocao_uf_porte(ANO, FIL.radar)
     ado_uf = ado[ado["uf_sigla"] == m["uf_sigla"]].groupby("item")[["soma_pontos", "soma_peso"]].sum()
     ado_porte = ado[ado["porte_municipio"] == m["porte_municipio"]].groupby("item")[["soma_pontos", "soma_peso"]].sum()
     pct_uf = dict(zip(ado_uf.index, pct(ado_uf["soma_pontos"], ado_uf["soma_peso"])))
@@ -779,7 +804,7 @@ def pagina_dimensoes():
     sd_br = sd[sd["cod_ibge"].isin(pan.loc[pan["score_global_imdm"].notna(), "cod_ibge"])]
     br_media = sd_br["score"].mean()
 
-    ado = dados.adocao_uf_porte(ANO)
+    ado = dados.adocao_uf_porte(ANO, FIL.radar)
     ado = ado[ado["dimensao_codigo"] == dim]
     a_sel = area(ado)
     g_sel = a_sel.groupby("item")[["soma_pontos", "soma_peso"]].sum()
@@ -886,12 +911,17 @@ def pagina_qualidade():
             ("IMDM", "média ponderada das dimensões do radar do ano"),
         ], columns=["Resposta", "Tratamento"]), hide_index=True, width="stretch", key="ql_regras")
     with c2:
-        st.subheader("Radar de cada edição")
+        st.subheader(f"Radar {FIL.radar} em cada edição")
         r = radar_all.sort_values(["ano_edicao", "dimensao_ordem"], ascending=[False, True])
         st.dataframe(r[["ano_edicao", "dimensao_ordem", "dimensao_nome", "dimensao_peso", "entra_no_imdm"]].rename(columns={
             "ano_edicao": "Edição", "dimensao_ordem": "Ordem", "dimensao_nome": "Dimensão", "dimensao_peso": "Peso",
             "entra_no_imdm": "Entra no IMDM"}), hide_index=True, width="stretch", key="ql_radar")
         st.caption("Definido pelo especialista em config/radar/radar_imdm.xlsx; validado e versionado no pipeline.")
+        if len(RADARES) > 1:
+            st.markdown("**Radares cadastrados**")
+            st.dataframe(RADARES[["radar", "nome", "descricao", "padrao"]].rename(columns={
+                "radar": "Radar", "nome": "Nome", "descricao": "Descrição", "padrao": "Padrão"}),
+                hide_index=True, width="stretch", key="ql_radares")
 
 
 if _PAGINA_TESTE:

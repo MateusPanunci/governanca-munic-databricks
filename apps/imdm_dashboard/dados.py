@@ -29,7 +29,9 @@ AQUI = Path(__file__).resolve().parent
 CACHE_TTL = 12 * 3600
 
 # Tabelas lidas na abertura do app (todas pequenas: até ~30 mil linhas)
-TABELAS_BASE = ["vw_painel_municipio", "vw_score_dimensao", "vw_radar_dimensao", "vw_auditoria_lgpd", "agg_qualidade_item"]
+TABELAS_BASE = ["vw_radares", "vw_painel_municipio", "vw_score_dimensao", "vw_radar_dimensao", "vw_auditoria_lgpd",
+                "agg_qualidade_item"]
+TABELAS_SEM_RADAR = {"vw_auditoria_lgpd", "vw_radares"}
 COLS_ADOCAO = ["uf_sigla", "regiao", "porte_municipio", "dimensao_codigo", "dimensao_nome", "dimensao_ordem",
                "item", "item_descricao", "variavel_ancora"]
 
@@ -102,7 +104,16 @@ def _ajustar(df: pd.DataFrame) -> pd.DataFrame:
 
 def _ler(nome: str, propria: bool = False) -> pd.DataFrame:
     t = time.perf_counter()
-    df = _local(nome) if LOCAL else _consulta(f"SELECT * FROM {CATALOGO}.{SCHEMA}.{nome}", propria=propria)
+    try:
+        df = _local(nome) if LOCAL else _consulta(f"SELECT * FROM {CATALOGO}.{SCHEMA}.{nome}", propria=propria)
+    except Exception:   # noqa: BLE001
+        if nome != "vw_radares":
+            raise
+        # semantic de antes dos vários radares: um radar só, sem cadastro
+        _log("vw_radares indisponível; usando um radar único 'A'")
+        df = pd.DataFrame([{"radar": "A", "nome": "Radar", "descricao": "", "padrao": True}])
+    if nome not in TABELAS_SEM_RADAR and "radar" not in df.columns:
+        df["radar"] = "A"   # semantic de antes dos vários radares
     _log(f"{nome}: {len(df):,} linhas em {time.perf_counter() - t:.1f}s")
     return _ajustar(df)
 
@@ -119,24 +130,27 @@ def base() -> dict[str, pd.DataFrame]:
 
 
 @st.cache_data(ttl=CACHE_TTL, show_spinner=False)
-def itens_do_municipio(cod_ibge: str, ano: int) -> pd.DataFrame:
-    """Itens do radar de um município numa edição (vw_item_municipio, ~64 linhas)."""
+def itens_do_municipio(cod_ibge: str, ano: int, radar: str) -> pd.DataFrame:
+    """Itens de um radar para um município numa edição (vw_item_municipio, ~64 linhas)."""
     t = time.perf_counter()
     if LOCAL:
         df = _local("vw_item_municipio")
-        df = df[(df["cod_ibge"].astype(str) == str(cod_ibge)) & (df["ano_edicao"] == ano)]
+        if "radar" not in df.columns:
+            df["radar"] = "A"
+        df = df[(df["cod_ibge"].astype(str) == str(cod_ibge)) & (df["ano_edicao"] == ano) & (df["radar"] == radar)]
     else:
         df = _consulta(
-            f"SELECT * FROM {CATALOGO}.{SCHEMA}.vw_item_municipio WHERE cod_ibge = :cod AND ano_edicao = :ano",
-            {"cod": str(cod_ibge), "ano": int(ano)},
+            f"SELECT * FROM {CATALOGO}.{SCHEMA}.vw_item_municipio "
+            "WHERE cod_ibge = :cod AND ano_edicao = :ano AND radar = :radar",
+            {"cod": str(cod_ibge), "ano": int(ano), "radar": str(radar)},
         )
-    _log(f"itens de {cod_ibge}/{ano}: {len(df)} linhas em {time.perf_counter() - t:.1f}s")
+    _log(f"itens de {cod_ibge}/{ano}/radar {radar}: {len(df)} linhas em {time.perf_counter() - t:.1f}s")
     return _ajustar(df.reset_index(drop=True))
 
 
 @st.cache_data(ttl=CACHE_TTL, show_spinner="Carregando a adoção dos itens…")
-def adocao_uf_porte(ano: int) -> pd.DataFrame:
-    """Somas de pontos e peso por item × UF × porte (para % de adoção em qualquer recorte).
+def adocao_uf_porte(ano: int, radar: str) -> pd.DataFrame:
+    """Somas de pontos e peso por item × UF × porte, de um radar (para % de adoção em qualquer recorte).
 
     Lê a tabela pronta `agg_adocao_uf_porte`. Se ela ainda não existir (semantic antiga),
     agrega a `vw_item_municipio` na hora — mais lento, mas o app continua funcionando.
@@ -146,26 +160,31 @@ def adocao_uf_porte(ano: int) -> pd.DataFrame:
         caminho = Path(LOCAL) / "agg_adocao_uf_porte.parquet"
         if caminho.exists():
             out = pd.read_parquet(caminho)
-            out = out[out["ano_edicao"] == ano]
+            if "radar" not in out.columns:
+                out["radar"] = "A"
+            out = out[(out["ano_edicao"] == ano) & (out["radar"] == radar)]
         else:
             df = _local("vw_item_municipio")
-            df = df[df["ano_edicao"] == ano]
+            if "radar" not in df.columns:
+                df["radar"] = "A"
+            df = df[(df["ano_edicao"] == ano) & (df["radar"] == radar)]
             out = df.groupby(COLS_ADOCAO, dropna=False).agg(
                 soma_pontos=("pontos_obtidos", "sum"), soma_peso=("peso_aplicado", "sum"),
                 municipios=("cod_ibge", "count")).reset_index()
     else:
         try:
-            out = _consulta(f"SELECT * FROM {CATALOGO}.{SCHEMA}.agg_adocao_uf_porte WHERE ano_edicao = :ano", {"ano": int(ano)})
+            out = _consulta(f"SELECT * FROM {CATALOGO}.{SCHEMA}.agg_adocao_uf_porte WHERE ano_edicao = :ano AND radar = :radar",
+                            {"ano": int(ano), "radar": str(radar)})
         except Exception:   # noqa: BLE001 — tabela ainda não publicada pelo gold_to_semantic novo
             _log("agg_adocao_uf_porte indisponível; agregando vw_item_municipio na hora")
             out = _consulta(
                 f"""SELECT {", ".join(COLS_ADOCAO)}, SUM(pontos_obtidos) AS soma_pontos, SUM(peso_aplicado) AS soma_peso,
                            COUNT(*) AS municipios
-                    FROM {CATALOGO}.{SCHEMA}.vw_item_municipio WHERE ano_edicao = :ano
+                    FROM {CATALOGO}.{SCHEMA}.vw_item_municipio WHERE ano_edicao = :ano AND radar = :radar
                     GROUP BY {", ".join(COLS_ADOCAO)}""",
-                {"ano": int(ano)},
+                {"ano": int(ano), "radar": str(radar)},
             )
-    _log(f"adoção {ano}: {len(out):,} linhas em {time.perf_counter() - t:.1f}s")
+    _log(f"adoção {ano}/radar {radar}: {len(out):,} linhas em {time.perf_counter() - t:.1f}s")
     for c in ("soma_pontos", "soma_peso"):
         out[c] = pd.to_numeric(out[c], errors="coerce").astype(float)
     return _ajustar(out)

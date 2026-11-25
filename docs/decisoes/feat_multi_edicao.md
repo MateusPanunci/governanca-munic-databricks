@@ -364,6 +364,37 @@ A consulta na `fact_resposta` 2019 não mostrou nenhum rótulo de "não sabe" en
 
 ---
 
+## Vários radares (metodologias) calculados lado a lado
+
+> Pedido de Alexandre: permitir mais de um radar definido pelo especialista e escolher no dashboard qual ver. Regra de negócio: **um radar é sempre um pacote com todas as edições** (Radar A = 2019 + 2024, Radar B = 2019 + 2024), nunca um radar por ano. Sem tela de envio de planilha nem editor no app (o foco do projeto é outro); o fluxo continua planilha → validar → commit → job.
+
+### Mudanças
+
+* **Planilha:** aba nova `Radares` (`radar`, `nome`, `descricao`, `padrao`) e coluna `radar` nas abas Dimensoes, Itens e Niveis. O radar que existia virou o **Radar A** (padrão), sem mudança de conteúdo.
+* **`validar_radar.py`:** valida cada radar × edição com as regras de antes e acrescenta: códigos de radar válidos e únicos, exatamente um padrão, toda linha com radar cadastrado (com sugestão para erro de digitação) e **todo radar com todas as edições** nas três abas. Gera `radares.csv` e a coluna `radar` nos CSVs.
+* **`load_radar_config`:** grava `config.radares` e a coluna `radar` em `config.radar_*`; o ledger `radar` passa a somar os itens de todos os radares da edição.
+* **`silver_to_gold`:**
+  * `fact_resposta` e `dim_indicador` não dependem mais do radar: saem `pontos_obtidos`/`peso_aplicado` da fato e `dimensao_imdm`/`item_imdm`/`peso_indicador`/`regra_pontuacao` da dimensão (a parametrização já vive em `config.radar_variavel`). O "não se aplica" da LAI deixou de zerar a `resposta_normalizada` (fica marcado na tabela de pontos, com peso NULL).
+  * **`fact_pontos_item`** (nova): radar × município × item, com âncora, regra, pontos e peso — mesma lógica por regra de antes, calculada com um `explode` por radar.
+  * `fact_score_dimensao` e `fact_imdm_municipio` ganham `radar` na chave. A recusa formal continua valendo por município (para todos os radares).
+  * As tabelas por radar apagam as linhas da edição antes de regravar (`limpar_edicao`), para não deixar órfão um radar, item ou dimensão que saiu da planilha.
+  * Controles: os de respostas uma vez; os de pontos, scores e IMDM **por radar** (29 com um radar, 46 com dois).
+* **`gold_to_semantic`:** coluna `radar` em todas as tabelas que dependem da metodologia (rankings particionados por radar) e tabela nova `vw_radares` para o seletor; `vw_auditoria_lgpd` não muda. Controles por radar.
+* **App:** seletor **Radar** no topo da barra lateral (abre no padrão, mostra a descrição); todas as telas filtram pelo radar; a tela Qualidade lista os radares cadastrados. Funciona também com a semantic antiga (sem `radar`), tratando tudo como Radar A.
+
+### Evidência (ambiente local, silver 2024)
+
+* **Radar A = versão anterior:** 0 divergências em `fact_score_dimensao` (27.850), `fact_imdm_municipio` (5.570, exceto o hash da planilha, que mudou), pontos e peso de cada âncora (354.132) e respostas/classes da `fact_resposta` (2.005.200). Semantic do Radar A idêntica à anterior (diferença só de arredondamento de float).
+* **Dois radares** (B de teste: LGPD com peso 2, Controle fora do IMDM, "Serviços" renomeado e 3 níveis): gold 46/46 e semantic 33/33 controles.
+* **Validador:** casos de erro conferidos (radar sem 2019, radar sem uma aba, código digitado errado, dois padrões, dimensão removida com itens apontando para ela).
+* **App:** teste de telas × filtros com 2 radares × 2 edições sem erro.
+
+### Operação (uma vez)
+
+O formato das tabelas da gold muda. Antes do primeiro run: `DROP TABLE` de `gold.dim_indicador`, `gold.fact_resposta`, `gold.fact_score_dimensao` e `gold.fact_imdm_municipio`; depois, rodar o job para 2024 e para 2019 (ou o `job_munic_full_refresh`). `config` e `semantic` se regravam sozinhas.
+
+---
+
 ## Pendências da branch
 
 * ~~Silver 2019~~ **RESOLVIDO no re-run do zero** (seção “Re-run do zero”): o fail-fast 7/7 passou contra o contrato da bronze 2019 (307 indicadores / 610 recusas).

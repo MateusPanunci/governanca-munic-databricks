@@ -1,71 +1,212 @@
 {
   "planilha": "radar_imdm.xlsx",
-  "sha256_planilha": "2b4af73e1ffe4625a06b5d69a69eb2208769e6d3d71dc1d619bf4afe3f42a2c9",
-  "gerado_em": "2026-11-16T21:00:16Z",
+  "sha256_planilha": "721ae81af9bdd886d038add998200b57370e7eb5393951617a3685646eb884ca",
+  "gerado_em": "2026-11-25T19:23:52Z",
+  "radar_padrao": "A",
   "resumo": {
-    "2019": {
-      "dimensoes": [
-        {
-          "ordem": 1,
-          "dimensao": "Infraestrutura, capacidade de TIC e acesso digital",
-          "entra_no_imdm": "sim",
-          "itens": 5
-        },
-        {
-          "ordem": 2,
-          "dimensao": "Transparência ativa e dados abertos",
-          "entra_no_imdm": "sim",
-          "itens": 11
-        },
-        {
-          "ordem": 3,
-          "dimensao": "Serviços digitais ao cidadão",
-          "entra_no_imdm": "sim",
-          "itens": 23
-        },
-        {
-          "ordem": 4,
-          "dimensao": "Controle interno e participação",
-          "entra_no_imdm": "sim",
-          "itens": 16
-        }
-      ],
-      "itens": 55
+    "A": {
+      "2019": {
+        "dimensoes": [
+          {
+            "ordem": 1,
+            "dimensao": "Infraestrutura, capacidade de TIC e acesso digital",
+            "entra_no_imdm": "sim",
+            "itens": 5
+          },
+          {
+            "ordem": 2,
+            "dimensao": "Transparência ativa e dados abertos",
+            "entra_no_imdm": "sim",
+            "itens": 11
+          },
+          {
+            "ordem": 3,
+            "dimensao": "Serviços digitais ao cidadão",
+            "entra_no_imdm": "sim",
+            "itens": 23
+          },
+          {
+            "ordem": 4,
+            "dimensao": "Controle interno e participação",
+            "entra_no_imdm": "sim",
+            "itens": 16
+          }
+        ],
+        "itens": 55
+      },
+      "2024": {
+        "dimensoes": [
+          {
+            "ordem": 1,
+            "dimensao": "Infraestrutura, capacidade de TIC e acesso digital",
+            "entra_no_imdm": "sim",
+            "itens": 7
+          },
+          {
+            "ordem": 2,
+            "dimensao": "Transparência ativa e dados abertos",
+            "entra_no_imdm": "sim",
+            "itens": 11
+          },
+          {
+            "ordem": 3,
+            "dimensao": "Serviços digitais ao cidadão",
+            "entra_no_imdm": "sim",
+            "itens": 26
+          },
+          {
+            "ordem": 4,
+            "dimensao": "Controle interno e participação",
+            "entra_no_imdm": "sim",
+            "itens": 16
+          },
+          {
+            "ordem": 5,
+            "dimensao": "Proteção de dados pessoais (LGPD)",
+            "entra_no_imdm": "sim",
+            "itens": 4
+          }
+        ],
+        "itens": 64
+      }
     },
-    "2024": {
-      "dimensoes": [
-        {
-          "ordem": 1,
-          "dimensao": "Infraestrutura, capacidade de TIC e acesso digital",
-          "entra_no_imdm": "sim",
-          "itens": 7
-        },
-        {
-          "ordem": 2,
-          "dimensao": "Transparência ativa e dados abertos",
-          "entra_no_imdm": "sim",
-          "itens": 11
-        },
-        {
-          "ordem": 3,
-          "dimensao": "Serviços digitais ao cidadão",
-          "entra_no_imdm": "sim",
-          "itens": 26
-        },
-        {
-          "ordem": 4,
-          "dimensao": "Controle interno e participação",
-          "entra_no_imdm": "sim",
-          "itens": 16
-        },
-        {
-          "ordem": 5,
-          "dimensao": "Proteção de dados pessoais (LGPD)",
-          "entra_no_imdm": "sim",
-          "itens": 4
-        }
-      ],
-      "itens": 64
+    "B": {
+      "2019": {
+        "dimensoes": [
+          {
+            "ordem": 1,
+            "dimensao": "Formas de atendimento à distância",
+            "entra_no_imdm": "sim",
+            "itens": 1
+          },
+          {
+            "ordem": 2,
+            "dimensao": "Estrutura em TI",
+            "entra_no_imdm": "sim",
+            "itens": 3
+          },
+          {
+            "ordem": 3,
+            "dimensao": "Página na internet e redes sociais",
+            "entra_no_imdm": "sim",
+            "itens": 14
+          },
+          {
+            "ordem": 4,
+            "dimensao": "Atendimento à distância para o cidadão",
+            "entra_no_imdm": "sim",
+            "itens": 7
+          },
+          {
+            "ordem": 5,
+            "dimensao": "Inclusão digital",
+            "entra_no_imdm": "sim",
+            "itens": 1
+          },
+          {
+            "ordem": 6,
+            "dimensao": "Acesso à internet para a população",
+            "entra_no_imdm": "sim",
+            "itens": 1
+          },
+          {
+            "ordem": 7,
+            "dimensao": "Participação do cidadão pela internet",
+            "entra_no_imdm": "sim",
+            "itens": 4
+          },
+          {
+            "ordem": 8,
+            "dimensao": "Transparência e acessibilidade digital",
+            "entra_no_imdm": "sim",
+            "itens": 2
+          },
+          {
+            "ordem": 9,
+            "dimensao": "Acesso à informação",
+            "entra_no_imdm": "sim",
+            "itens": 11
+          },
+          {
+            "ordem": 10,
+            "dimensao": "Controle interno",
+            "entra_no_imdm": "sim",
+            "itens": 11
+          }
+        ],
+        "itens": 55
+      },
+      "2024": {
+        "dimensoes": [
+          {
+            "ordem": 1,
+            "dimensao": "Formas de atendimento à distância",
+            "entra_no_imdm": "sim",
+            "itens": 2
+          },
+          {
+            "ordem": 2,
+            "dimensao": "Estrutura em TI",
+            "entra_no_imdm": "sim",
+            "itens": 5
+          },
+          {
+            "ordem": 3,
+            "dimensao": "Página na internet e redes sociais",
+            "entra_no_imdm": "sim",
+            "itens": 14
+          },
+          {
+            "ordem": 4,
+            "dimensao": "Atendimento à distância para o cidadão",
+            "entra_no_imdm": "sim",
+            "itens": 9
+          },
+          {
+            "ordem": 5,
+            "dimensao": "Inclusão digital",
+            "entra_no_imdm": "sim",
+            "itens": 1
+          },
+          {
+            "ordem": 6,
+            "dimensao": "Acesso à internet para a população",
+            "entra_no_imdm": "sim",
+            "itens": 1
+          },
+          {
+            "ordem": 7,
+            "dimensao": "Participação do cidadão pela internet",
+            "entra_no_imdm": "sim",
+            "itens": 4
+          },
+          {
+            "ordem": 8,
+            "dimensao": "Transparência e acessibilidade digital",
+            "entra_no_imdm": "sim",
+            "itens": 2
+          },
+          {
+            "ordem": 9,
+            "dimensao": "Acesso à informação",
+            "entra_no_imdm": "sim",
+            "itens": 11
+          },
+          {
+            "ordem": 10,
+            "dimensao": "Controle interno",
+            "entra_no_imdm": "sim",
+            "itens": 11
+          },
+          {
+            "ordem": 11,
+            "dimensao": "LGPD",
+            "entra_no_imdm": "sim",
+            "itens": 4
+          }
+        ],
+        "itens": 64
+      }
     }
   }
 }

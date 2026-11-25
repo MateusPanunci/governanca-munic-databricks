@@ -1,10 +1,31 @@
-edicao,dimensao,ordem,peso,entra_no_imdm,descricao
-2024,"Infraestrutura, capacidade de TIC e acesso digital",1,1,sim,"Estrutura, equipe e capacidade de TIC da prefeitura e acesso digital da população"
-2024,Transparência ativa e dados abertos,2,1,sim,"Publicação de dados de gestão, formatos abertos e conteúdo do portal"
-2024,Serviços digitais ao cidadão,3,1,sim,Serviços e canais digitais oferecidos ao cidadão
-2024,Controle interno e participação,4,1,sim,Controle interno e participação social pela internet
-2024,Proteção de dados pessoais (LGPD),5,1,sim,Estrutura e práticas de proteção de dados pessoais
-2019,"Infraestrutura, capacidade de TIC e acesso digital",1,1,sim,"Estrutura, equipe e capacidade de TIC da prefeitura e acesso digital da população"
-2019,Transparência ativa e dados abertos,2,1,sim,"Publicação de dados de gestão, formatos abertos e conteúdo do portal"
-2019,Serviços digitais ao cidadão,3,1,sim,Serviços e canais digitais oferecidos ao cidadão
-2019,Controle interno e participação,4,1,sim,Controle interno e participação social pela internet
+radar,edicao,dimensao,ordem,peso,entra_no_imdm,descricao
+A,2024,"Infraestrutura, capacidade de TIC e acesso digital",1,1,sim,"Estrutura, equipe e capacidade de TIC da prefeitura e acesso digital da população"
+A,2024,Transparência ativa e dados abertos,2,1,sim,"Publicação de dados de gestão, formatos abertos e conteúdo do portal"
+A,2024,Serviços digitais ao cidadão,3,1,sim,Serviços e canais digitais oferecidos ao cidadão
+A,2024,Controle interno e participação,4,1,sim,Controle interno e participação social pela internet
+A,2024,Proteção de dados pessoais (LGPD),5,1,sim,Estrutura e práticas de proteção de dados pessoais
+A,2019,"Infraestrutura, capacidade de TIC e acesso digital",1,1,sim,"Estrutura, equipe e capacidade de TIC da prefeitura e acesso digital da população"
+A,2019,Transparência ativa e dados abertos,2,1,sim,"Publicação de dados de gestão, formatos abertos e conteúdo do portal"
+A,2019,Serviços digitais ao cidadão,3,1,sim,Serviços e canais digitais oferecidos ao cidadão
+A,2019,Controle interno e participação,4,1,sim,Controle interno e participação social pela internet
+B,2019,Formas de atendimento à distância,1,1,sim,Seção 2.1 da MUNIC: Formas de atendimento à distância e tipo de conexão com a internet
+B,2019,Estrutura em TI,2,1,sim,Seção 2.2 da MUNIC: Estrutura em TI
+B,2019,Página na internet e redes sociais,3,1,sim,Seção 2.3 da MUNIC: Características da página na internet e redes sociais
+B,2019,Atendimento à distância para o cidadão,4,1,sim,Seção 2.4 da MUNIC: Modalidades de atendimento à distância para o cidadão
+B,2019,Inclusão digital,5,1,sim,Seção 2.5 da MUNIC: Programa ou ação de inclusão digital
+B,2019,Acesso à internet para a população,6,1,sim,Seção 2.6 da MUNIC: Acesso à internet para a população
+B,2019,Participação do cidadão pela internet,7,1,sim,Seção 2.7 da MUNIC: Formas de participação do cidadão pela internet
+B,2019,Transparência e acessibilidade digital,8,1,sim,Seção 2.9 da MUNIC: Transparência nas informações da prefeitura e acessibilidade digital
+B,2019,Acesso à informação,9,1,sim,Seção 3.1 da MUNIC: Acesso à informação
+B,2019,Controle interno,10,1,sim,Seção 3.2 da MUNIC: Controle Interno
+B,2024,Formas de atendimento à distância,1,1,sim,Seção 2.1 da MUNIC: Formas de atendimento à distância e tipo de conexão com a internet
+B,2024,Estrutura em TI,2,1,sim,Seção 2.2 da MUNIC: Estrutura em TI
+B,2024,Página na internet e redes sociais,3,1,sim,Seção 2.3 da MUNIC: Características da página na internet e redes sociais
+B,2024,Atendimento à distância para o cidadão,4,1,sim,Seção 2.4 da MUNIC: Modalidades de atendimento à distância para o cidadão
+B,2024,Inclusão digital,5,1,sim,Seção 2.5 da MUNIC: Programa ou ação de inclusão digital
+B,2024,Acesso à internet para a população,6,1,sim,Seção 2.6 da MUNIC: Acesso à internet para a população
+B,2024,Participação do cidadão pela internet,7,1,sim,Seção 2.7 da MUNIC: Formas de participação do cidadão pela internet
+B,2024,Transparência e acessibilidade digital,8,1,sim,Seção 2.9 da MUNIC: Transparência nas informações da prefeitura e acessibilidade digital
+B,2024,Acesso à informação,9,1,sim,Seção 3.1 da MUNIC: Acesso à informação
+B,2024,Controle interno,10,1,sim,Seção 3.2 da MUNIC: Controle Interno
+B,2024,LGPD,11,1,sim,Seção 3.4 da MUNIC: Lei Geral de Proteção de Dados Pessoais (LGPD)

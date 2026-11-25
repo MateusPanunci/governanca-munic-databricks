@@ -5,6 +5,8 @@
 - **Schemas Alvo:** `silver` (ajuste de pré-requisito), `gold` e `semantic`
 - **Alinhamento de Governança:** COBIT 2019 (APO03.02, APO14.02, APO14.03, APO14.07, BAI03.02, MEA01.03) e CMMI-DMM (Modelo de Maturidade de Dados)
 
+> **Atualização — vários radares (nov/2026):** a pontuação deixou de viver na `fact_resposta` e na `dim_indicador`. Hoje: `fact_resposta` guarda só as respostas do IBGE (sem radar); a nova **`fact_pontos_item`** guarda pontos e peso por **radar × município × item**; `fact_score_dimensao` e `fact_imdm_municipio` têm a coluna `radar` na chave; a parametrização (item, dimensão, regra, âncora) está em `config.radar_variavel`. As seções abaixo descrevem o desenho original de um radar só; as regras de pontuação e do denominador continuam as mesmas, aplicadas a cada radar. Detalhes em `docs/decisoes/feat_multi_edicao.md` e `config/radar/README.md`.
+
 ---
 
 ## 1. Contexto e Decisões de Arquitetura (Pós-Revisão e Achados da Etapa 2)

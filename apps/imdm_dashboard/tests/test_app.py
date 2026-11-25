@@ -1,4 +1,5 @@
-"""Teste de fumaça do dashboard: abre cada tela com muitas combinações de filtros e falha se alguma der erro.
+"""Teste de fumaça do dashboard: abre cada tela com muitas combinações de filtros (radar, edição, região,
+UF, porte, município e dimensão) e falha se alguma der erro.
 
 Roda fora do Databricks, sobre um export .parquet da camada semantic (um arquivo por tabela):
 
@@ -27,13 +28,23 @@ def _dados():
     pasta = os.getenv("IMDM_LOCAL_DIR")
     if not pasta:
         raise SystemExit("Defina IMDM_LOCAL_DIR com a pasta dos .parquet da semantic.")
-    return (pd.read_parquet(Path(pasta) / "vw_painel_municipio.parquet").astype({"cod_ibge": str}),
-            pd.read_parquet(Path(pasta) / "vw_radar_dimensao.parquet"))
+    pan = pd.read_parquet(Path(pasta) / "vw_painel_municipio.parquet").astype({"cod_ibge": str})
+    rad = pd.read_parquet(Path(pasta) / "vw_radar_dimensao.parquet")
+    radares = pd.read_parquet(Path(pasta) / "vw_radares.parquet")
+    return pan, rad, radares
 
 
 def cenarios(rapido=False):
-    """Combinações de filtros por edição: regiões × UFs × portes, municípios-limite e cada dimensão."""
-    pan, rad = _dados()
+    """Combinações de filtros por radar e edição: regiões × UFs × portes, municípios-limite e cada dimensão.
+    O radar padrão passa pela matriz escolhida; os demais radares, pela amostra menor (--rapido)."""
+    pan, rad, radares = _dados()
+    padrao = radares.loc[radares["padrao"].astype(bool), "radar"].tolist()
+    for radar in sorted(radares["radar"], key=lambda r: (r not in padrao, r)):
+        yield from _cenarios_radar(pan[pan["radar"] == radar], rad[rad["radar"] == radar], radar,
+                                   rapido or radar not in padrao)
+
+
+def _cenarios_radar(pan, rad, radar, rapido):
     for ano in sorted(pan["ano_edicao"].unique(), reverse=True):
         p = pan[pan["ano_edicao"] == ano]
         dims = rad.loc[rad["ano_edicao"] == ano, "dimensao_codigo"].drop_duplicates().tolist()
@@ -47,7 +58,7 @@ def cenarios(rapido=False):
                 ufs = ufs[:2]
             for uf in ufs:
                 for porte in portes:
-                    combos.append(dict(f_ano=int(ano), f_regiao=reg, f_uf=uf, f_porte=porte))
+                    combos.append(dict(f_radar=radar, f_ano=int(ano), f_regiao=reg, f_uf=uf, f_porte=porte))
         # municípios: IMDM nulo, menores, maiores, únicos na UF (DF) e uma amostra
         ordem = p.sort_values("score_global_imdm", na_position="first")
         muns = (ordem.head(4)["cod_ibge"].tolist() + ordem.dropna(subset=["score_global_imdm"]).tail(2)["cod_ibge"].tolist()
@@ -55,7 +66,7 @@ def cenarios(rapido=False):
                 + p.sample(3 if rapido else 8, random_state=int(ano))["cod_ibge"].tolist())
         for m in dict.fromkeys(muns):
             r = p[p["cod_ibge"] == m].iloc[0]
-            combos.append(dict(f_ano=int(ano), f_regiao=r["regiao"], f_uf=r["uf_sigla"], f_porte="Todos", f_mun=m))
+            combos.append(dict(f_radar=radar, f_ano=int(ano), f_regiao=r["regiao"], f_uf=r["uf_sigla"], f_porte="Todos", f_mun=m))
         for c in combos:
             for pagina in PAGINAS:
                 if pagina == "dimensoes":

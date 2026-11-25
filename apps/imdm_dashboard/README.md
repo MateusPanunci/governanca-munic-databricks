@@ -2,12 +2,14 @@
 
 Lê **somente** a camada `munic_catalog.semantic` (gerada pelo `pipeline/gold_to_semantic`). Nenhuma regra de pontuação mora aqui: dimensões, itens e pesos vêm do radar de cada edição (`config/radar/radar_imdm.xlsx`). Se o especialista mudar o radar, o dashboard muda junto, sem alteração de código.
 
-| Tela | O que mostra | Tabelas usadas |
+| Tela | O que mostra | Tabelas usadas (todas filtradas pelo radar, menos a de LGPD) |
 |---|---|---|
 | Visão geral | KPIs (mudam quando um município é escolhido), radar seleção × referência × Brasil, score por dimensão, LGPD, ranking clicável, distribuição, porte, mapa, níveis, maiores/menores | `vw_painel_municipio`, `vw_score_dimensao`, `vw_radar_dimensao`, `vw_auditoria_lgpd` |
 | Perfil do município | Rankings, radar município × UF × Brasil, mapa da UF, lacunas e destaques frente ao porte, todos os itens do radar com a resposta do IBGE | + `vw_item_municipio` (só o município), `agg_adocao_uf_porte` |
 | Dimensões | Seletor de dimensão do ano, adoção de cada item × Brasil, score por UF/município, distribuição e porte | `agg_adocao_uf_porte`, `vw_score_dimensao` |
 | Qualidade dos dados | IMDM nulo por motivo, "Não sabe" por variável e por UF, saltos lógicos, regras de tratamento e o radar de cada edição | `agg_qualidade_item`, `vw_painel_municipio`, `vw_radar_dimensao` |
+
+**Radar:** o primeiro filtro da barra lateral escolhe a metodologia (radares definidos pelo especialista em `config/radar/radar_imdm.xlsx`; abre no padrão). Todas as telas mostram os números do radar escolhido.
 
 Filtros na barra lateral: edição, macrorregião, UF e porte valem para todas as telas. O **município** só vale na Visão geral e no Perfil; em Dimensões e Qualidade ele fica desativado ("Não se aplica nesta tela"), porque essas telas mostram médias, distribuições e contagens de uma área. A escolha fica guardada e volta ao retornar às outras telas.
 
